@@ -12,18 +12,34 @@ class ReframeSettings:
     _site_configuration = {
         'systems': {
             # Generic system used also in unit tests
-            'generic': {
-                'descr': 'Generic example system',
-
+            'kupe': {
+                'descr': 'NIWA HPC3 system KUPE',
                 # Adjust to your system's hostname
-                'hostnames': ['localhost'],
+                'hostnames': ['kupe01'],
+                'resourcesdir': '/home/schoenherrm/projects/reframe/kupe_tests',
+                'modules_system': 'tmod',
                 'partitions': {
                     'login': {
                         'scheduler': 'local',
-                        'modules': [],
+                        #'modules': ['craype-x86-skylake'],
+			# due to the issue that the default gcc is 4.8.1, which does not support skylake
+                        'modules': ['craype-broadwell'],
                         'access':  [],
-                        'environs': ['builtin-gcc'],
-                        'descr': 'Login nodes'
+                        'environs': ['PrgEnv-cray', 'PrgEnv-gnu',
+                                     'PrgEnv-intel'],
+                        'descr': 'Login nodes',
+                        'max_jobs': 4
+                    },
+                    'compute': {
+                        'scheduler': 'nativeslurm',
+                        #'modules': ['craype-x86-skylake'],
+			# due to the issue that the default gcc is 4.8.1, which does not support skylake
+                        'modules': ['craype-broadwell'],  
+                        'access':  ['--partition=NeSI --account=nesi99999'],
+                        'environs': ['PrgEnv-cray', 'PrgEnv-gnu',
+                                     'PrgEnv-intel'],
+                        'descr': 'XC compute nodes',
+                        'max_jobs': 100
                     }
                 }
             }
@@ -31,18 +47,19 @@ class ReframeSettings:
 
         'environments': {
             '*': {
-                'builtin': {
+                'PrgEnv-cray': {
                     'type': 'ProgEnvironment',
-                    'cc':  'cc',
-                    'cxx': '',
-                    'ftn': '',
+                    'modules': ['PrgEnv-cray'],
                 },
-
-                'builtin-gcc': {
+    
+                'PrgEnv-gnu': {
                     'type': 'ProgEnvironment',
-                    'cc':  'gcc',
-                    'cxx': 'g++',
-                    'ftn': 'gfortran',
+                    'modules': ['PrgEnv-gnu'],
+                },
+    
+                'PrgEnv-intel': {
+                    'type': 'ProgEnvironment',
+                    'modules': ['PrgEnv-intel'],
                 }
             }
         }
