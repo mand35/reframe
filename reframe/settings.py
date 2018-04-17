@@ -16,8 +16,10 @@ class ReframeSettings:
                 'descr': 'NIWA HPC3 system KUPE',
                 # Adjust to your system's hostname
                 'hostnames': ['kupe01'],
-                'resourcesdir': '/home/schoenherrm/projects/reframe/kupe_tests',
+#                'resourcesdir': '/home/schoenherrm/projects/reframe/kupe_tests',
+                'resourcesdir': '/scale_akl_nobackup/filesets/nobackup/schoenherrm/180405_BM_tests/',
                 'modules_system': 'tmod',
+                'stagedir': '/scale_akl_nobackup/filesets/nobackup/schoenherrm/reframe',
                 'partitions': {
                     'login': {
                         'scheduler': 'local',
