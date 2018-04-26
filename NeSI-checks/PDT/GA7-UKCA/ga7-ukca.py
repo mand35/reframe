@@ -12,14 +12,12 @@ class GA7UKCAcheck(RunOnlyRegressionTest):
         self.descr = check_descr
         self.valid_prog_environs = ['PrgEnv-cray']
 
-        self.sanity_patterns = sn.all([sn.assert_found(r'^\s*End of UM RUN Job', 'pe_output/umnsa.fort6.pe000')])
+        self.sanity_patterns = sn.all([sn.assert_found(r'End of UM RUN Job', 'pe_output/ad317.fort6.pe000')])
 
 
         self.perf_patterns = {
-            'perf': sn.extractsingle(r'^ Time taken by run_um-nzcsm_XC.sh in seconds is ',
+            'perf': sn.extractsingle(r'^Time taken by GA7-UKCA in seconds is \s+(?P<perf>\S+)',
                                      self.stdout, 'perf', float)
-#            'perf': sn.extractsingle(r'^ CP2K(\s+[\d\.]+){4}\s+(?P<perf>\S+)',
-#                                     self.stdout, 'perf', float)
         }
 
         self.maintainers = ['Man']
@@ -41,7 +39,12 @@ class GA7UKCAcheck(RunOnlyRegressionTest):
         self.pre_run.append("source $UMDIR/ancils")
         self.pre_run.append('ulimit -s unlimited')
 
+        self.pre_run.append('beg_secs=$(date +%s)')
+
         self.executable = "$ATMOS_EXEC"
+
+        self.post_run.append('end_secs=$(date +%s)')
+        self.post_run.append('let wallsecs=$end_secs-$beg_secs; echo "Time taken by GA7-UKCA in seconds is " $wallsecs')
 
 #TODO also for bigger cases
 class GA7UKCAcheck_small(GA7UKCAcheck):
@@ -93,7 +96,7 @@ class GA7UKCAcheck_small(GA7UKCAcheck):
 
         self.reference = {
             'kupe:compute': {
-                'perf': (1581, None, 0.10) #TODO still need to calculate the 2*standard deviation, which PDT should not outreach
+                'perf': (2061, None, 0.10) #TODO still need to calculate the 2*standard deviation, which PDT should not outreach
             },
         }
         self.tags |= {'maintenance', 'production'}

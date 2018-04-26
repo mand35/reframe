@@ -16,8 +16,8 @@ class NZCSMcheck(RunOnlyRegressionTest):
         self.sanity_patterns = sn.all([sn.assert_found(r'^\s*END OF RUN - TIMER OUTPUT', 'pe_output/umnsa.fort6.pe000')])
 
         self.perf_patterns = {
-            'perf': sn.extractsingle(r'^Maximum Elapsed Wallclock Time:\s+(?P<perf>\S+)',
-                                     'pe_output/umnsa.fort6.pe000', 'perf', float)
+            'perf': sn.extractsingle(r'^Time taken by NZCSM in seconds is\s+(?P<perf>\S+)',
+                                     self.stdout, 'perf', float)
         }
 
         self.modules = ['craype-hugepages8M']
@@ -25,9 +25,12 @@ class NZCSMcheck(RunOnlyRegressionTest):
         
         prescript = os.path.join(self.sourcesdir, '../scripts/nesi_um-atmos')
         self.pre_run = ['mkdir um_output/', "source " + prescript, 'ulimit -s unlimited']
-
+        self.pre_run.append('beg_secs=$(date +%s)')
 
         self.executable = "$ATMOS_EXEC"
+
+        self.post_run.append('end_secs=$(date +%s)')
+        self.post_run.append('let wallsecs=$end_secs-$beg_secs; echo "Time taken by NZCSM in seconds is " $wallsecs')
 
         self.maintainers = ['Man']
         self.strict_check = True
@@ -39,6 +42,7 @@ class NZCSMcheck_small(NZCSMcheck):
         self.valid_systems = ['kupe:compute', 'maui:compute']
 
         self.num_tasks = 512
+        self.num_cpus_per_task = 2
         self.num_tasks_per_node = 20
         self.time_limit = (0, 59,0)
         self.use_multithreading = False
@@ -51,6 +55,7 @@ class NZCSMcheck_small(NZCSMcheck):
 
                           'MPICH_MAX_THREAD_SAFETY': 'multiple',
                           'MPICH_RANK_REORDER_METHOD': '3',
+                          'MPICH_RANK_REORDER_DISPLAY': '1',
                           'FORT_BUFFERED': 'TRUE',
                           'FORT_FMT_NO_WRAP_MARGIN': 'TRUE',
                           'MALLOC_MMAP_MAX_': '0',

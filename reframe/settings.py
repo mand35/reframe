@@ -42,11 +42,20 @@ class ReframeSettings:
                                      'PrgEnv-intel'],
                         'descr': 'XC compute nodes',
                         'max_jobs': 100
+                    },
+                    'CS_compute': {
+                        'scheduler': 'nativeslurm',
+                        #'modules': ['craype-x86-skylake'],
+                        # due to the issue that the default gcc is 4.8.1, which does not support skylake
+                        'modules': ['craype-broadwell'],
+                        'access':  ['--partition=General --account=nesi99999'],
+                        'environs': ['PrgEnv-gnu'],
+                        'descr': 'CS compute nodes',
+                        'max_jobs': 100
                     }
                 }
             }
         },
-
         'environments': {
             '*': {
                 'PrgEnv-cray': {
