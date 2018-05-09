@@ -11,8 +11,8 @@ class MDTestCheck(RegressionTest):
         self.tags = {'ops', mdtest_type}
 
         self.valid_systems = ['kupe:compute']
-        self.num_tasks = 40
-        self.num_tasks_per_node = 40
+        self.num_tasks = 64
+        self.num_tasks_per_node = 2
         self.time_limit = (0, 35, 0)
 
         self.valid_prog_environs = ['PrgEnv-cray']
@@ -20,7 +20,7 @@ class MDTestCheck(RegressionTest):
         self.sourcesdir = os.path.join(self.current_system.resourcesdir,
                                        'MDTest')
         self.executable = os.path.join('src', 'mdtest', 'mdtest')
-        items_per_rank = 655360 / self.num_tasks
+        items_per_rank = 1048576 / self.num_tasks
         test_dir = os.path.join('testdir')
         exe_opts = '-v -F -C -T -r -n %s -d %s -N %s -i 1 ' % (items_per_rank, test_dir, self.num_tasks_per_node) 
 
@@ -31,23 +31,15 @@ class MDTestCheck(RegressionTest):
         elif mdtest_type == 'single':
           self.executable_opts = ('%s -s ' % exe_opts).split()
 
-#        data_file = '%s.out' % mdtest_type
-#        if mdtest_type == 'shared':
-#          self.executable_opts = ('%s >> %s' %(exe_opts, data_file)).split()
-#        elif mdtest_type == 'unique':
-#          self.executable_opts = ('%s -u >> %s' %(exe_opts, data_file)).split()
-#        elif mdtest_type == 'single':
-#          self.executable_opts = ('%s -s >> %s' %(exe_opts, data_file)).split()
-
         self.sanity_patterns = sn.assert_found(r'^\s+File creation', self.stdout)
         self.perf_patterns = { mdtest_type: sn.extractsingle(
               r'^\s+File creation\s+:\s+(?P<'+mdtest_type+'>\S+) ', self.stdout, mdtest_type, float)
         }
         self.reference = {
             'kupe:compute': {
-                'shared': (17450, None, 0.05), 
-                'unique': (17450, None, 0.05), 
-                'single': (17450, None, 0.05), 
+                'shared': (20000, None, 0.05), 
+                'unique': (26245, None, 0.05), 
+                'single': (36757, None, 0.05), 
             },
         }
 
@@ -58,7 +50,7 @@ class MDTestCheck(RegressionTest):
 
 def _get_checks(**kwargs):
     ret = [
-           MDTestCheck('shared', **kwargs),
+           #MDTestCheck('shared', **kwargs),
            MDTestCheck('unique', **kwargs),
            MDTestCheck('single', **kwargs),
     ]
