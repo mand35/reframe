@@ -5,23 +5,22 @@ from reframe.core.pipeline import RunOnlyRegressionTest
 
 
 class GA7UKCAcheck(RunOnlyRegressionTest):
-    def __init__(self, check_name, check_descr, **kwargs):
-        super().__init__(check_name, os.path.dirname(__file__), **kwargs)
+    def __init__(self, name, s_x, s_y, **kwargs):
+        super().__init__(name, os.path.dirname(__file__), **kwargs)
         self.sourcesdir = os.path.join(self.current_system.resourcesdir,
                                        'GA7-UKCA/input')
-        self.descr = check_descr
+        self.descr = 'GA7 UKCA {} processes, 2 OMP threads'.format(s_x*s_y)
+
+        self.valid_systems = ['kupe:compute', 'maui:compute']
         self.valid_prog_environs = ['PrgEnv-cray']
 
-        self.sanity_patterns = sn.all([sn.assert_found(r'End of UM RUN Job', 'pe_output/ad317.fort6.pe000')])
+        self.num_tasks = s_x*s_y
+        self.num_cpus_per_task = 2
+        self.num_tasks_per_node = 20
+        self.time_limit = (2, 00,0)
+        self.use_multithreading = False
 
 
-        self.perf_patterns = {
-            'perf': sn.extractsingle(r'^Time taken by GA7-UKCA in seconds is \s+(?P<perf>\S+)',
-                                     self.stdout, 'perf', float)
-        }
-
-        self.maintainers = ['Man']
-        self.strict_check = True
         self.modules = ['craype-hugepages8M']
         self.modules = ['craype-broadwell']
         self.modules = ['cray-hdf5/1.10.1.1']
@@ -33,7 +32,6 @@ class GA7UKCAcheck(RunOnlyRegressionTest):
         prescript = os.path.join(self.sourcesdir, '../scripts/nesi_um-atmos')
         self.pre_run = ["source " + prescript, 'ulimit -s unlimited']
 
-        self.pre_run.append("export UM_BASE_DIR=base_dir")
         self.pre_run.append('mkdir History_Data/')
         self.pre_run.append('mkdir History_Data/seedfiles')
         self.pre_run.append("source $UMDIR/ancils")
@@ -43,23 +41,10 @@ class GA7UKCAcheck(RunOnlyRegressionTest):
 
         self.executable = "$ATMOS_EXEC"
 
-        self.post_run.append('end_secs=$(date +%s)')
-        self.post_run.append('let wallsecs=$end_secs-$beg_secs; echo "Time taken by GA7-UKCA in seconds is " $wallsecs')
-
-#TODO also for bigger cases
-class GA7UKCAcheck_small(GA7UKCAcheck):
-    def __init__(self, **kwargs):
-        super().__init__('GA7_UKCA_check_small', 'GA7 UKCA 512 cores', **kwargs)
-#        self.executable_opts = ['16 32 2']
-        self.valid_systems = ['kupe:compute', 'maui:compute']
- 
-        self.num_tasks = 512
-        self.num_tasks_per_node = 20
-        self.use_multithreading = False
-
-        self.time_limit = (2, 00,0)
         um_dir = os.path.join(self.sourcesdir,'../source/um_ukca_10.4/build-atmos/bin/')
-        self.variables = {
+        self.variables = {'UM_BASE_DIR': base_dir, 
+                          'UM_ATM_NPROCX': s_x,
+                          'UM_ATM_NPROCY': s_y,
                           'OMP_NUM_THREADS': '2',
                           'OMP_PLACES': 'threads',
                           'OMP_PROC_BIND': 'spread',
@@ -68,8 +53,6 @@ class GA7UKCAcheck_small(GA7UKCAcheck):
 
                           'MPICH_MAX_THREAD_SAFETY': 'multiple',
 
-                          'UM_ATM_NPROCX': '16',
-                          'UM_ATM_NPROCY': '32', 
                           'ATMOS_EXEC': os.path.join(um_dir,'um-atmos.exe'),
                           'UM_INSTALL_DIR': um_dir,
 			  'UMDIR': os.path.join(self.sourcesdir,'../input'),
@@ -93,13 +76,48 @@ class GA7UKCAcheck_small(GA7UKCAcheck):
                           'VN': '10.4',
         }
 
+        self.post_run.append('end_secs=$(date +%s)')
+        self.post_run.append('let wallsecs=$end_secs-$beg_secs; echo "Time taken by GA7-UKCA in seconds is " $wallsecs')
+
+        self.sanity_patterns = sn.all([sn.assert_found(r'End of UM RUN Job', 'pe_output/ad317.fort6.pe000')])
+
+        p_name = "perf_%s"%self.num_tasks
+        self.perf_patterns = {
+            p_name: sn.extractsingle(r'^Time taken by GA7-UKCA in seconds is \s+(?P<'+p_name+'>\S+)',
+                                     self.stdout, p_name, float)
+        }
+
+        self.maintainers = ['Man']
+        self.strict_check = True
+
+class GA7UKCA_BM(GA7UKCAcheck):
+    def __init__(self, s_x, s_y, **kwargs):
+        super().__init__('GA7_UKCA_{}c_BM'.format(s_x*s_y*2), s_x, s_y, **kwargs)
 
         self.reference = {
             'kupe:compute': {
-                'perf': (2061, None, 0.10) #TODO still need to calculate the 2*standard deviation, which PDT should not outreach
+                'perf_512':  (2061, None, 0.10), #TODO still need to calculate the 2*standard deviation, which PDT should not outreach
+                'perf_1024': (1219, None, 0.10)
             },
         }
-        self.tags |= {'maintenance', 'production'}
+        self.tags |= {'BM'}
+
+class GA7UKCA_PDT(GA7UKCAcheck):
+    def __init__(self, s_x, s_y, **kwargs):
+        super().__init__('GA7_UKCA_{}c_PDT'.format(s_x*s_y*2), s_x, s_y, **kwargs)
+
+        self.reference = {
+            'kupe:compute': {
+                'perf_1024': (580.6, None, (580.6+(2*3.1))/580.6)  # cray provided 580.6+(2*3.1)
+            },
+        }
+        self.pre_run.append("cp SHARED_PDT SHARED")
+        self.tags |= {'PDT'}
+
 
 def _get_checks(**kwargs):
-    return [GA7UKCAcheck_small(**kwargs)]
+    return [GA7UKCA_BM(16, 32, **kwargs), 
+            GA7UKCA_BM(32, 32, **kwargs),
+
+            GA7UKCA_PDT(32,32, **kwargs)
+           ]

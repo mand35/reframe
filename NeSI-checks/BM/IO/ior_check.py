@@ -30,7 +30,7 @@ class IorCheck(RegressionTest):
             }
         elif fs_mount_point == '/scale_wlg_nobackup/filesets/nobackup':
             self.valid_systems = ['maui:compute', 'mahuika:compute']
-
+            # TODO TBD
 
         self.valid_prog_environs = ['PrgEnv-cray']
         self.sourcesdir = os.path.join(self.current_system.resourcesdir,
@@ -40,7 +40,6 @@ class IorCheck(RegressionTest):
 #TODO get a IOR test directory
         self.test_file = os.path.join(self.fs_mount_point, 'schoenherrm', '.ior', #'read',
                                       'ior.dat')
-        self.maintainers = ['Man']
 
         # Default umask is 0022, which generates file permissions -rw-r--r--
         # we want -rw-rw-r-- so we set umask to 0002
@@ -51,6 +50,9 @@ class IorCheck(RegressionTest):
         self.reference = {
             '*': self.fs_reference[self.fs_mount_point]
         }
+
+        self.maintainers = ['Man']
+        self.tags |= {'BM'}
 
     def compile(self):
         super().compile(options='-C src/C posix mpiio')
@@ -86,24 +88,6 @@ class SingleIorCheck(IorCheck):
         }
         self.tags |= {'read', 'write'}
 
-
-#class SingleIorWriteCheck(IorCheck):
-#    def __init__(self, t_size, fs_mount_point, ior_type, **kwargs):
-#        super().__init__('single_ior_write_check_%s'%t_size, fs_mount_point, **kwargs)
-#        self.num_tasks = 1
-#        self.num_tasks_per_node = 1
-#        blocksize='128g'
-#
-#        self.executable_opts = ('-w -k -a '+ ior_type +' -B -F -b ' + blocksize + ' -t ' + t_size + ' -e -D 240 -o ' + self.test_file).split()
-#
-#        self.sanity_patterns = sn.assert_found(r'^Max Write: ', self.stdout)
-#        p_name = 's_write_bw_%s'%t_size
-#        self.perf_patterns = {
-#            p_name: sn.extractsingle(
-#                r'^Max Write:\s+(?P<'+p_name+'>\S+) MiB/sec', self.stdout,
-#                p_name, float) 
-#        }
-#        self.tags |= {'write'}
 
 #TODO create file for reading, since we could handle the test asyncronously 
 class DuplexIorCheck(IorCheck):

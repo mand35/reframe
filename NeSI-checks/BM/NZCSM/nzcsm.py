@@ -5,48 +5,31 @@ from reframe.core.pipeline import RunOnlyRegressionTest
 
 
 class NZCSMcheck(RunOnlyRegressionTest):
-    def __init__(self, check_name, check_descr, **kwargs):
-        super().__init__(check_name, os.path.dirname(__file__), **kwargs)
+    def __init__(self, name, s_x, s_y, **kwargs):
+        super().__init__(name, os.path.dirname(__file__), **kwargs)
+
+        self.descr = 'NZCSM check {}'.format(s_x, s_y, 2)
         self.sourcesdir = os.path.join(self.current_system.resourcesdir,
                                        'NZCSM/input')
-        self.descr = check_descr
+        self.valid_systems = ['kupe:compute']
         self.valid_prog_environs = ['PrgEnv-intel']
 
+        self.num_tasks = s_x*s_y
+        self.num_cpus_per_task = 2
+        self.num_tasks_per_node = 20
+        self.time_limit = (0, 59, 0)
 
-        self.sanity_patterns = sn.all([sn.assert_found(r'^\s*END OF RUN - TIMER OUTPUT', 'pe_output/umnsa.fort6.pe000')])
-
-        self.perf_patterns = {
-            'perf': sn.extractsingle(r'^Time taken by NZCSM in seconds is\s+(?P<perf>\S+)',
-                                     self.stdout, 'perf', float)
-        }
+        prescript = os.path.join(self.sourcesdir, '../scripts/nesi_um-atmos')
+        self.pre_run = ['mkdir um_output/', "source " + prescript, 'ulimit -s unlimited']
+        self.pre_run.append("cp MPICH_RANK_ORDER.{} MPICH_RANK_ORDER".format(s_x*s_y))
+        self.pre_run.append('beg_secs=$(date +%s)')
 
         self.modules = ['craype-hugepages8M']
         self.readonly_files = ['OS36_alabc', 'OS36_alabc_000', 'OS36_astart']
         
-        prescript = os.path.join(self.sourcesdir, '../scripts/nesi_um-atmos')
-        self.pre_run = ['mkdir um_output/', "source " + prescript, 'ulimit -s unlimited']
-        self.pre_run.append('beg_secs=$(date +%s)')
-
-        self.executable = "$ATMOS_EXEC"
-
-        self.post_run.append('end_secs=$(date +%s)')
-        self.post_run.append('let wallsecs=$end_secs-$beg_secs; echo "Time taken by NZCSM in seconds is " $wallsecs')
-
-        self.maintainers = ['Man']
-        self.strict_check = True
-
-#TODO also for bigger cases
-class NZCSMcheck_small(NZCSMcheck):
-    def __init__(self, **kwargs):
-        super().__init__('nzcsm_check_small', 'NZCSM check 16 32 2', **kwargs)
-        self.valid_systems = ['kupe:compute', 'maui:compute']
-
-        self.num_tasks = 512
-        self.num_cpus_per_task = 2
-        self.num_tasks_per_node = 20
-        self.time_limit = (0, 59,0)
         self.use_multithreading = False
         um_dir = os.path.join(self.sourcesdir,'../source/um_nzcsm_10.4_XC_8Mhugepage_intel_opt/build-atmos/bin')
+        
         self.variables = {
                           'OMP_NUM_THREADS': '2',
                           'OMP_STACKSIZE': '512M',
@@ -63,8 +46,8 @@ class NZCSMcheck_small(NZCSMcheck):
                           'MPICH_GNI_MAX_EAGER_MSG_SIZE': '65535',
                           'MPICH_SMP_SINGLE_COPY_SIZE': '65535',
 
-                          'UM_ATM_NPROCX': '16', 
-                          'UM_ATM_NPROCY': '32', 
+                          'UM_ATM_NPROCX': s_x,
+                          'UM_ATM_NPROCY': s_y,
                           'UM_INSTALL_DIR': um_dir,
                           'ATMOS_EXEC': '${UM_INSTALL_DIR}/um-atmos.exe',
                           'ATMOS_KEEP_MPP_STDOUT': 'true',
@@ -118,14 +101,56 @@ class NZCSMcheck_small(NZCSMcheck):
                           'UM_THREAD_LEVEL': 'MULTIPLE',
                           'STAGE_DIR': "$PWD"
         }
-        self.pre_run.append("cp MPICH_RANK_ORDER.512 MPICH_RANK_ORDER")
+
+        self.executable = "$ATMOS_EXEC"
+
+        self.post_run.append('end_secs=$(date +%s)')
+        self.post_run.append('let wallsecs=$end_secs-$beg_secs; echo "Time taken by NZCSM in seconds is " $wallsecs')
+
+        self.sanity_patterns = sn.all([sn.assert_found(r'^\s*END OF RUN - TIMER OUTPUT', 'pe_output/umnsa.fort6.pe000')])
+
+        p_name = "perf_{}".format(self.num_tasks)
+        self.perf_patterns = {
+            p_name: sn.extractsingle(r'^Time taken by NZCSM in seconds is\s+(?P<'+p_name+'>\S+)',
+                                     self.stdout, p_name, float)
+        }
+
+        self.maintainers = ['Man']
+        self.strict_check = True
+
+class NZCSM_BM(NZCSMcheck):
+    def __init__(self, s_x, s_y, **kwargs):
+        super().__init__('nzcsm_check_{}c_BM'.format(s_x*s_y*2), s_x, s_y, **kwargs)
 
         self.reference = {
             'kupe:compute': {
-                'perf': (1581, None, 0.10) #TODO still need to calculate the 2*standard deviation, which PDT should not outreach
+                'perf_512':  (1581, None, 0.10), #TODO still need to calculate the 2*standard deviation, which PDT should not outreach
+                'perf_1024': ( 878, None, 0.10),
+                'perf_1440': ( 653, None, 0.10)
             },
         }
-        self.tags |= {'maintenance', 'production'}
+        self.tags |= {'BM'}
+
+class NZCSM_PDT(NZCSMcheck):
+    def __init__(self, s_x, s_y, **kwargs):
+        super().__init__('nzcsm_check_{}c_PDT'.format(s_x*s_y*2), s_x, s_y, **kwargs)
+
+        self.reference = {
+            'kupe:compute': {
+               'perf_1024': ( 446.6, None, 1.0125),  ## cray provided  446.6+(2*2.8) = 452.2
+               'perf_512':  (   805, None, 1.0124), ## not measures, just estimated  805+(2*5)
+            },
+        }
+        self.pre_run.append("cp SHARED_PDT SHARED")
+
+        self.tags |= {'PDT'}
 
 def _get_checks(**kwargs):
-    return [NZCSMcheck_small(**kwargs)]
+    return [
+            NZCSM_BM(16,32, **kwargs),
+            NZCSM_BM(32,32, **kwargs),
+            NZCSM_BM(36,40, **kwargs), 
+
+            #NZCSM_PDT(16,32, **kwargs) 
+            NZCSM_PDT(32,32, **kwargs) ## cray provided PDT ref, but job could be too big for production
+            ]
