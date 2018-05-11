@@ -46,8 +46,8 @@ class NZCSMcheck(RunOnlyRegressionTest):
                           'MPICH_GNI_MAX_EAGER_MSG_SIZE': '65535',
                           'MPICH_SMP_SINGLE_COPY_SIZE': '65535',
 
-                          'UM_ATM_NPROCX': s_x,
-                          'UM_ATM_NPROCY': s_y,
+                          'UM_ATM_NPROCX': str(s_x),
+                          'UM_ATM_NPROCY': str(s_y),
                           'UM_INSTALL_DIR': um_dir,
                           'ATMOS_EXEC': '${UM_INSTALL_DIR}/um-atmos.exe',
                           'ATMOS_KEEP_MPP_STDOUT': 'true',
@@ -99,7 +99,7 @@ class NZCSMcheck(RunOnlyRegressionTest):
                           'RCF_TIMER': 'false',
                           'RUNID': 'umnsa',
                           'UM_THREAD_LEVEL': 'MULTIPLE',
-                          'STAGE_DIR': "$PWD"
+                          'STAGE_DIR': '$PWD'
         }
 
         self.executable = "$ATMOS_EXEC"

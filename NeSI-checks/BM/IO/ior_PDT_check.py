@@ -5,10 +5,10 @@ from reframe.core.pipeline import RegressionTest
 
 
 class IorCheck(RegressionTest):
-    def __init__(self, procs, t_size, b_size, fs_mount_point, **kwargs):
-        super().__init__('IOR_check_{0}procs_{1}blocksize_{2}'.format(procs,b_size, os.path.basename(fs_mount_point)),
+    def __init__(self, procs, t_size, b_size, fs_mount_point, io_type, **kwargs):
+        super().__init__('IOR_check_{0}procs_{1}blocksize_{2}_{3}'.format(procs,b_size, io_type, os.path.basename(fs_mount_point)),
                          os.path.dirname(__file__), **kwargs)
-        self.descr = 'IOR check using {0} processes, {1} transfer size, {2} block size on {3} '.format(procs,t_size,b_size, fs_mount_point)
+        self.descr = 'IOR check using {0} processes, {1} transfer size, {2} block size on {3} '.format(procs,t_size,b_size, io_type, fs_mount_point)
 
         self.sourcesdir = os.path.join(self.current_system.resourcesdir, 'IOR')
         self.executable = os.path.join('src', 'C', 'IOR')
@@ -24,7 +24,7 @@ class IorCheck(RegressionTest):
         self.num_tasks = procs
         self.num_tasks_per_node = procs
 
-        self.executable_opts = ('-a POSIX -C -e -F -g -t ' + t_size + ' -b ' + b_size + ' -vv -w -r -o ' + self.test_file).split()
+        self.executable_opts = ('-a '+io_type+' -C -e -F -g -t ' + t_size + ' -b ' + b_size + ' -vv -w -r -o ' + self.test_file).split()
 
         self.sanity_patterns = sn.assert_found(r'^Max Read: ', self.stdout)
 

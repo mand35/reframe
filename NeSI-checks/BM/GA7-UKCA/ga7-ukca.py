@@ -43,8 +43,8 @@ class GA7UKCAcheck(RunOnlyRegressionTest):
 
         um_dir = os.path.join(self.sourcesdir,'../source/um_ukca_10.4/build-atmos/bin/')
         self.variables = {'UM_BASE_DIR': base_dir, 
-                          'UM_ATM_NPROCX': s_x,
-                          'UM_ATM_NPROCY': s_y,
+                          'UM_ATM_NPROCX': str(s_x),
+                          'UM_ATM_NPROCY': str(s_y),
                           'OMP_NUM_THREADS': '2',
                           'OMP_PLACES': 'threads',
                           'OMP_PROC_BIND': 'spread',
