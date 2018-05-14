@@ -77,29 +77,21 @@ class MDTest_PDT(RegressionTest):
                                        'MDTest')
         self.executable = os.path.join('src', 'mdtest', 'mdtest')
         test_dir = os.path.join('testdir')
-        exe_opts = '-F -C -T -r -n 16384 -N 16 -d {}'.format(test_dir)
+        self.executable_opts = '-F -C -T -r -n 16384 -N 16 -d {}'.format(test_dir).split()
 
         self.sanity_patterns = sn.assert_found(r'^\s+File creation', self.stdout)
 
-        p_name = "creation"
-        self.perf_patterns = { p_name: sn.extractsingle(
-              r'^\s+File creation\s+:\s+(?P<'+p_name+'>\S+) ', self.stdout, p_name, float)
-        }
-        p_name = "stat"
-        self.perf_patterns = { p_name: sn.extractsingle(
-              r'^\s+File stat\s+:\s+(?P<'+p_name+'>\S+) ', self.stdout, p_name, float)
-        }
-        p_name = "remove"
-        self.perf_patterns = { p_name: sn.extractsingle(
-              r'^\s+File removal\s+:\s+(?P<'+p_name+'>\S+) ', self.stdout, p_name, float)
-        }
+        self.perf_patterns = {}
+        p_names = {'creation', 'stat', 'removal'}
+        for p_name in p_names:
+           self.perf_patterns[p_name] = sn.extractsingle(r'^\s+File '+p_name+'\s+:\s+(?P<'+p_name+'>\S+) ', self.stdout, p_name, float)
 
+        kupe_mdres = {}
+        kupe_mdres['creation'] = (7747,  -(2*223.1)/7747, None)
+        kupe_mdres['stat']     = (16527, -(2*558.2)/16527,None)
+        kupe_mdres['removal']  = (7355, -(2*173.1)/7355, None)
         self.reference = {
-            'kupe:compute': {
-                'creation': (7747,  -(2*223.1)/7747, None),
-                'stat':     (16527, -(2*558.2)/16527,None),
-                'remove':   (7355,  -(2*173.1)/7355, None),
-            },
+            'kupe:compute': kupe_mdres
         }
     
         self.maintainers = ['Man']

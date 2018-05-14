@@ -107,7 +107,7 @@ class NZCSMcheck(RunOnlyRegressionTest):
         self.post_run.append('end_secs=$(date +%s)')
         self.post_run.append('let wallsecs=$end_secs-$beg_secs; echo "Time taken by NZCSM in seconds is " $wallsecs')
 
-        self.sanity_patterns = sn.all([sn.assert_found(r'^\s*END OF RUN - TIMER OUTPUT', 'pe_output/umnsa.fort6.pe000')])
+        self.sanity_patterns = sn.all([sn.assert_found(r'^\s*END OF RUN - TIMER OUTPUT', 'pe_output/umnsa.fort6.pe0000')])
 
         p_name = "perf_{}".format(self.num_tasks)
         self.perf_patterns = {

@@ -73,19 +73,16 @@ class SingleIorCheck(IorCheck):
 
         self.sanity_patterns = sn.assert_found(r'^Max Read: ', self.stdout)
 
+        self.perf_patterns = {}
         p_name = 's_write_bw_%s'%t_size
-        self.perf_patterns = {
-            p_name: sn.extractsingle(
+        self.perf_patterns[p_name] = sn.extractsingle(
                 r'^Max Write:\s+(?P<'+p_name+'>\S+) MiB/sec', self.stdout,
                 p_name, float)
-        }
 
         p_name = 's_read_bw_%s'%t_size
-        self.perf_patterns = {
-            p_name: sn.extractsingle(
+        self.perf_patterns[p_name] = sn.extractsingle(
                 r'^Max Read:\s+(?P<'+p_name+'>\S+) MiB/sec', self.stdout,
                 p_name, float)
-        }
         self.tags |= {'read', 'write'}
 
 

@@ -28,31 +28,28 @@ class IorCheck(RegressionTest):
 
         self.sanity_patterns = sn.assert_found(r'^Max Read: ', self.stdout)
 
-        p_name = 'write_{0}_{1}'.format(procs,b_size)
-        self.perf_patterns = {
-            p_name: sn.extractsingle(
+        self.perf_patterns = {}
+        p_name = 'write_{0}_{1}_{2}'.format(procs,t_size,b_size)
+        self.perf_patterns[p_name] = sn.extractsingle(
                 r'^Max Write:\s+(?P<'+p_name+'>\S+) MiB/sec', self.stdout,
                 p_name, float)
-        }
 
         p_name = 'read_{0}_{1}_{2}'.format(procs,t_size,b_size)
-        self.perf_patterns = {
-            p_name: sn.extractsingle(
+        self.perf_patterns[p_name] = sn.extractsingle(
                 r'^Max Read:\s+(?P<'+p_name+'>\S+) MiB/sec', self.stdout,
                 p_name, float)
-        }
 
         if fs_mount_point == '/scale_akl_nobackup/filesets/nobackup':
             self.valid_systems = ['kupe:compute']
 
+            kupe_res = {}
+            # measurments are obtained in MiB (MiB *1024*1024 / 1000/ 1000 = MB/s = 0.95367431640625 MiB/s)
+            kupe_res['read_64_4m_8g']  =  (8887, -(2*25.1)/8887, None)
+            kupe_res['write_64_4m_8g'] = (2498, -(2*84.4)/6872, None)
+            kupe_res['read_1_4k_4g']   =  (64, -(2*1.0)/64, None)
+            kupe_res['write_1_4k_4g']  = (70, -(2*2.3)/70, None)
             self.fs_reference = {
-                # measurments are obtained in MiB (MiB *1024*1024 / 1000/ 1000 = MB/s = 0.95367431640625 MiB/s)
-                '/scale_akl_nobackup/filesets/nobackup': {
-                    'read_64_4m_8g':  (8887, -(2*25.1)/8887, None),
-                    'write_64_4m_8g': (2498, -(2*84.4)/6872, None),
-                    'read_1_4k_4g':  (64, -(2*1.0)/64, None),
-                    'write_1_4k_4g': (70, -(2*2.3)/70, None),
-                }
+                '/scale_akl_nobackup/filesets/nobackup': kupe_res
             }
         elif fs_mount_point == '/scale_wlg_nobackup/filesets/nobackup':
             self.valid_systems = ['maui:compute', 'mahuika:compute']
