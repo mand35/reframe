@@ -11,7 +11,7 @@ class NZCSMcheck(RunOnlyRegressionTest):
         self.descr = 'NZCSM check {}'.format(s_x, s_y, 2)
         self.sourcesdir = os.path.join(self.current_system.resourcesdir,
                                        'NZCSM/input')
-        self.valid_systems = ['kupe:compute']
+        self.valid_systems = ['kupe:compute', 'maui:compute']
         self.valid_prog_environs = ['PrgEnv-intel']
 
         self.num_tasks = s_x*s_y
@@ -137,11 +137,15 @@ class NZCSM_PDT(NZCSMcheck):
 
         self.reference = {
             'kupe:compute': {
-               'perf_1024': ( 446.6, None, 1.0125),  ## cray provided  446.6+(2*2.8) = 452.2
+               'perf_1024': ( 446.6, None, 1.0125),  ## cray provided  446.6+(2*2.8) = 452.2  
                'perf_512':  (   805, None, 1.0124), ## not measures, just estimated  805+(2*5)
             },
+            'maui:compute': {
+               'perf_1024': ( 421, None, 1.00807),  ## cray provided  1+(2*1.7)/421
+            },
         }
-        self.pre_run.append("cp SHARED_PDT SHARED")
+
+        self.pre_run.append("cp SHARED_PDT SHARED") ## using only half the time steps
 
         self.tags |= {'PDT'}
 

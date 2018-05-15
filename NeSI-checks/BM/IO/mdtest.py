@@ -88,8 +88,8 @@ class MDTest_PDT(RegressionTest):
 
         kupe_mdres = {}
         kupe_mdres['creation'] = (7747,  -(2*223.1)/7747, None)
-        kupe_mdres['stat']     = (16527, -(2*558.2)/16527,None)
-        kupe_mdres['removal']  = (7355, -(2*173.1)/7355, None)
+        kupe_mdres['stat'] =     (16527, -(2*558.2)/16527,None)
+        kupe_mdres['removal'] =  (7355, -(2*173.1)/7355, None)
         self.reference = {
             'kupe:compute': kupe_mdres
         }

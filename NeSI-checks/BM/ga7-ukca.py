@@ -110,6 +110,8 @@ class GA7UKCA_PDT(GA7UKCAcheck):
             'kupe:compute': {
                 'perf_1024': (580.6, None, (580.6+(2*3.1))/580.6)  # cray provided 580.6+(2*3.1)
             },
+            'maui:compute': {
+                'perf_1024': (558, None, 1+(2*2.1)/558)
         }
         self.pre_run.append("cp SHARED_PDT SHARED")
         self.tags |= {'PDT'}
