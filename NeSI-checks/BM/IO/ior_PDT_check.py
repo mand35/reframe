@@ -41,24 +41,34 @@ class IorCheck(RegressionTest):
 
         if fs_mount_point == '/scale_akl_nobackup/filesets/nobackup':
             self.valid_systems = ['kupe:compute']
-
-            kupe_res = {}
-            # measurments are obtained in MiB (MiB *1024*1024 / 1000/ 1000 = MB/s = 0.95367431640625 MiB/s)
-            kupe_res['read_64_4m_8g']  =  (8887, -(2*25.1)/8887, None)
-            kupe_res['write_64_4m_8g'] = (2498, -(2*84.4)/6872, None)
-            kupe_res['read_1_4k_4g']   =  (64, -(2*1.0)/64, None)
-            kupe_res['write_1_4k_4g']  = (70, -(2*2.3)/70, None)
-            self.fs_reference = {
-                '/scale_akl_nobackup/filesets/nobackup': kupe_res
-            }
+            
         elif fs_mount_point == '/scale_wlg_nobackup/filesets/nobackup':
-            self.valid_systems = ['maui:compute', 'mahuika:compute']
-            # TODO TBD
+            if procs == 36:
+               self.valid_systems = ['mahuika:compute']
+            else:
+               self.valid_systems = ['maui:compute']
 
-        # Our references are based on fs types but regression needs reference
-        # per system.
+
         self.reference = {
-            '*': self.fs_reference[self.fs_mount_point]
+            'kupe:compute' : {
+                'read_64_4m_8g' :  (8887, -(2*25.1)/8887, None),
+                'write_64_4m_8g' : (6872, -(2*84.4)/6872, None),
+                'read_1_4k_4g' :   (64, -(2*1.0)/64, None),
+                'write_1_4k_4g' :  (70, -(2*2.3)/70, None)
+            },
+#TODO are 4k tests really on 64 / 36 threads?
+            'maui:compute' : {
+                'read_64_4m_8g' :  (8834, -(2*31)/8834, None),
+                'write_64_4m_8g' : (6995, -(2*88)/6695, None),
+                'read_64_4k_4g' :  (62, -(2*2.2)/62, None),
+                'write_64_4k_4g' : (70, -(2*1.7)/70, None)
+            },
+            'mahuika:compute' : {
+                'read_36_4m_8g' :  (6467, -(2*61)/6467, None),
+                'write_36_4m_8g' : (5032, -(2*78)/5032, None),
+                'read_36_4k_4g' :  (1025, -(2*20)/1025, None),
+                'write_36_4k_4g' : (1936, -(2*46)/1936, None)
+            }
         }
 
         self.maintainers = ['Man']
@@ -71,5 +81,11 @@ def _get_checks(**kwargs):
     ret = [
            IorCheck(64, '4m', '8g', '/scale_akl_nobackup/filesets/nobackup', 'POSIX', **kwargs),
            IorCheck( 1, '4k', '4g', '/scale_akl_nobackup/filesets/nobackup', 'POSIX', **kwargs),
+
+           IorCheck(36, '4m', '8g', '/scale_wlg_nobackup/filesets/nobackup', 'POSIX', **kwargs),
+           IorCheck(64, '4m', '8g', '/scale_wlg_nobackup/filesets/nobackup', 'POSIX', **kwargs),
+           IorCheck(36, '4k', '4g', '/scale_wlg_nobackup/filesets/nobackup', 'POSIX', **kwargs),
+           IorCheck(64, '4k', '4g', '/scale_wlg_nobackup/filesets/nobackup', 'POSIX', **kwargs),
+
     ]
     return ret

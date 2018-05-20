@@ -62,12 +62,17 @@ class MDTest_BM(RegressionTest):
         super().compile(options=' -C src/mdtest CC=cc ')
 
 class MDTest_PDT(RegressionTest):
-    def __init__(self, **kwargs):
+    def __init__(self, procs, **kwargs):
         super().__init__('MDTest_PDT', os.path.dirname(__file__), **kwargs)
         self.descr = 'MDTest check PDT' 
 
-        self.valid_systems = ['kupe:compute']
-        self.num_tasks = 64
+        if procs == 64:
+#TODO was Maui also running on 64 treads?
+          self.valid_systems = ['kupe:compute', 'maui:compute']
+        elif procs ==36:
+#TODO how mani PPN were used?
+          self.valid_systems = ['mahuika:compute']
+        self.num_tasks = procs
         self.num_tasks_per_node = 16
         self.time_limit = (0, 35, 0)
 
@@ -91,7 +96,20 @@ class MDTest_PDT(RegressionTest):
         kupe_mdres['stat'] =     (16527, -(2*558.2)/16527,None)
         kupe_mdres['removal'] =  (7355, -(2*173.1)/7355, None)
         self.reference = {
-            'kupe:compute': kupe_mdres
+            'kupe:compute' : {
+                'creation' : (7747,  -(2*223.1)/7747, None),
+                'stat' :     (16527, -(2*558.2)/16527,None),
+                'removal' :  (7355, -(2*173.1)/7355, None)
+            },
+            'mahuika:compute' : {
+                'creation' : (8347,  -(2*108)/8347, None),
+                'stat' :     (12213, -(2*256)/12213,None),
+                'removal' :  (4672, -(2*84)/4672, None)
+            },
+           'maui:compute' : {
+                'creation' : (9432,  -(2*239)/9432, None),
+                'stat' :     (14119, -(2*302)/14119,None),
+                'removal' :  (6739, -(2*271)/6739, None)
         }
     
         self.maintainers = ['Man']
@@ -106,6 +124,7 @@ def _get_checks(**kwargs):
            #MDTest_BM('shared', **kwargs),
            MDTest_BM('unique', **kwargs),
            MDTest_BM('single', **kwargs),
-           MDTest_PDT(**kwargs)
+           MDTest_PDT(64, **kwargs)
+           MDTest_PDT(36, **kwargs) # Mahuika
     ]
     return ret
