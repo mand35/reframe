@@ -13,7 +13,7 @@ class ReframeSettings:
         'systems': {
             # Generic system used also in unit tests
             'kupe': {
-                'descr': 'NIWA HPC3 system KUPE',
+                'descr': 'NIWA HPC3 system KUPE (XC50 A/C)',
                 # Adjust to your system's hostname
                 'hostnames': ['kupe01'],
 #                'resourcesdir': '/home/schoenherrm/projects/reframe/kupe_tests',
@@ -55,6 +55,32 @@ class ReframeSettings:
                     }
                 }
             }
+            'mahuika': {
+                'descr': 'NIWA HPC1 system Mahuika (CS500)',
+                # Adjust to your system's hostname
+                'hostnames': ['mahuika01'],
+                'resourcesdir': '/scale_wlg_nobackup/filesets/nobackup/schoenherrm/180405_BM_tests/',
+                'modules_system': 'tmod',
+                'stagedir': '/scale_wlg_nobackup/filesets/nobackup/schoenherrm/reframe',
+                'partitions': {
+                    'login': {
+                        'scheduler': 'local',
+                        'modules': ['craype-broadwell'],
+                        'access':  [],
+                        'environs': ['PrgEnv-cray'],
+                        'descr': 'Login nodes',
+                        'max_jobs': 4
+                    },
+                    'compute': {
+                        'scheduler': 'nativeslurm',
+                        'modules': ['craype-broadwell'],
+                        'access':  ['--account=nesi99999'],
+                        'environs': ['PrgEnv-cray'],
+                        'descr': 'CS500 compute nodes',
+                        'max_jobs': 100
+                    },
+                }
+            }
         },
         'environments': {
             '*': {
@@ -72,6 +98,9 @@ class ReframeSettings:
                     'type': 'ProgEnvironment',
                     'modules': ['PrgEnv-intel'],
                 }
+                'intel': {
+                    'type': 'ProgEnvironment',
+                    'modules': ['intel/compiler', 'intel/mpi'],
             }
         }
     }
