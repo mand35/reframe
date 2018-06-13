@@ -54,7 +54,7 @@ class ReframeSettings:
                         'max_jobs': 100
                     }
                 }
-            }
+            },
             'mahuika': {
                 'descr': 'NIWA HPC1 system Mahuika (CS500)',
                 # Adjust to your system's hostname
@@ -97,14 +97,14 @@ class ReframeSettings:
                 'PrgEnv-intel': {
                     'type': 'ProgEnvironment',
                     'modules': ['PrgEnv-intel'],
-                }
+                },
                 'intel': {
                     'type': 'ProgEnvironment',
                     'modules': ['intel/compiler', 'intel/mpi'],
+                }
             }
         }
     }
-
     _logging_config = {
         'level': 'DEBUG',
         'handlers': {

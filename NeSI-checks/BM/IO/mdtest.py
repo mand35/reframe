@@ -63,7 +63,7 @@ class MDTest_BM(RegressionTest):
 
 class MDTest_PDT(RegressionTest):
     def __init__(self, procs, **kwargs):
-        super().__init__('MDTest_PDT', os.path.dirname(__file__), **kwargs)
+        super().__init__('MDTest_PDT_%c'%procs, os.path.dirname(__file__), **kwargs)
         self.descr = 'MDTest check PDT' 
 
         if procs == 64:
@@ -110,6 +110,7 @@ class MDTest_PDT(RegressionTest):
                 'creation' : (9432,  -(2*239)/9432, None),
                 'stat' :     (14119, -(2*302)/14119,None),
                 'removal' :  (6739, -(2*271)/6739, None)
+           }
         }
     
         self.maintainers = ['Man']
@@ -124,7 +125,7 @@ def _get_checks(**kwargs):
            #MDTest_BM('shared', **kwargs),
            MDTest_BM('unique', **kwargs),
            MDTest_BM('single', **kwargs),
-           MDTest_PDT(64, **kwargs)
+           MDTest_PDT(64, **kwargs),
            MDTest_PDT(36, **kwargs) # Mahuika
     ]
     return ret

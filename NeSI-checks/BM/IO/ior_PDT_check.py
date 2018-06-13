@@ -79,7 +79,7 @@ class IorCheck(RegressionTest):
 
 def _get_checks(**kwargs):
     ret = [
-           IorCheck(64, '4m', '8g', '/scale_akl_nobackup/filesets/nobackup', 'POSIX', **kwargs),
+           #IorCheck(64, '4m', '8g', '/scale_akl_nobackup/filesets/nobackup', 'POSIX', **kwargs), ## already defined for WLG BM set
            IorCheck( 1, '4k', '4g', '/scale_akl_nobackup/filesets/nobackup', 'POSIX', **kwargs),
 
            IorCheck(36, '4m', '8g', '/scale_wlg_nobackup/filesets/nobackup', 'POSIX', **kwargs),
