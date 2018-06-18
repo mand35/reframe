@@ -3,6 +3,7 @@ import os
 
 import reframe.utility.sanity as sn
 from reframe.core.pipeline import RunOnlyRegressionTest
+from reframe.core.launchers import JobLauncher
 
 
 class NAMDBaseCheck(RunOnlyRegressionTest):
@@ -11,35 +12,47 @@ class NAMDBaseCheck(RunOnlyRegressionTest):
  
         self.sourcesdir = os.path.join(self.current_system.resourcesdir,
                                        'NAMD')
-        self.valid_prog_environs = ['gcc']
+        self.valid_prog_environs = ['intel']
 
-        self.modules = ['gcc/6.3.0', 'cray-fftw/3.3.6.3']
         self.sourcesdir = os.path.join(self.current_system.resourcesdir,
                                        'NAMD/input')
+        self.time_limit = (0, 30,0)
+        self.variables = {
+           'OMP_NUM_THREADS': str(self.num_cpus_per_task),
+           'I_MPI_FABRICS': '"shm:ofa"'
+        }
 
-        self.variables = {'LD_LIBRARY_PATH': "${CRAY_LD_LIBRARY_PATH}:$LD_LIBRARY_PATH",
-                          'OMP_NUM_THREADS': str(self.num_cpus_per_task),
-                          'I_MPI_FABRICS': 'shm:ofa'}
-
-        self.readonly_files = ['FFTW_NAMD_2.11_Linux-x86_64-MPI_FFTW3.txt', 
+        self.readonly_files = [
+                               'FFTW_NAMD_2.11_Linux-x86_64-MPI_FFTW3.txt', 
                                'open_core_wb_ion.pdb', 'open_core_wb_ion.psf',
-                               'open_core_eq_31.restart.xsc', 'open_core_eq_31.restart.vel',
-                               'open_core_eq_31.restart.coor', 'par_all27_prot_na.prm',
-                               'open_target_1.pdb', 'open_target_2.pdb', 'RMSD_open.in', 
+                               'open_core_eq_31.restart.xsc', 
+                               'open_core_eq_31.restart.vel',
+                               'open_core_eq_31.restart.coor', 
+                               'par_all27_prot_na.prm',
+                               'open_target_1.pdb', 'open_target_2.pdb',  
+                               'RMSD_open.in', 
                                'benchmark.conf', 'open_core_meta_01.dcd']
 
         self.exclusive = True
         self.use_multithreading=False
         self.num_tasks = tasks
         self.num_tasks_per_node = tasks
-        self.num_tasks_per_socket = tasks/2
+        self.num_tasks_per_socket = int(tasks/2)
         self.num_cpus_per_task = 1
         # cannot be mapped: --mpi=pmi2 
-        self.executable = '${EXEDIR}/namd2'
+        self.executable = os.path.join(self.sourcesdir, '../executable/namd2')
         self.executable_opts = ('benchmark.conf').split()
-        self.pre_run('beg_secs=$(date +%s)')
-        self.post_run.append('end_secs=$(date +%s)')
-        self.post_run.append('let wallsecs=$end_secs-$beg_secs; echo "Time taken by NAMD in seconds is:" $wallsecs')
+
+        self.pre_run = [
+                        'module load cray-fftw/3.3.6.3',
+                        'export LD_LIBRARY_PATH=$CRAY_LD_LIBRARY_PATH:$LD_LIBRARY_PATH',
+                        'module load gcc/6.3.0', 
+                        'module load intel/compiler/64/2017/17.0.6',
+                        'module load intel/mpi/64/2018/1.163',
+                        'beg_secs=$(date +%s)']
+        self.post_run = ['end_secs=$(date +%s)',
+           'let wallsecs=$end_secs-$beg_secs' ,
+           'echo "Time taken by NAMD in seconds is:" $wallsecs']
 
         self.sanity_patterns = sn.assert_found('End of program', self.stdout)
 
@@ -53,9 +66,14 @@ class NAMDBaseCheck(RunOnlyRegressionTest):
         self.strict_check = True
         self.use_multithreading = False
 
+    def setup(self, partition, environ, **job_opts):
+        super().setup(partition, environ, **job_opts)
+        self.job.launcher.options += ['--mpi=pmi2']  # we need to run it with PMI2
+        #self.job.launcher = JobLauncher(options=['--mpi=pmi2'])
+
 class NAMD_BM(NAMDBaseCheck):
     def __init__(self, tasks, **kwargs):
-       super().__init__('NAMD_BM', tasks, **kwargs)
+       super().__init__('NAMD_BM_%s'%tasks, tasks, **kwargs)
 
        self.valid_systems = ['mahuika:compute']
        self.descr = 'NAMD BM'
@@ -75,7 +93,7 @@ class NAMD_BM(NAMDBaseCheck):
 
 class NAMD_PDT(NAMDBaseCheck):
     def __init__(self, tasks, **kwargs):
-       super().__init__('namd_PDT', tasks, **kwargs)
+       super().__init__('namd_PDT_%d'%tasks, tasks, **kwargs)
 
        self.valid_systems = ['mahuika:compute']
        self.descr = 'NAMD PDT'

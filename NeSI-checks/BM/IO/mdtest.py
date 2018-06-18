@@ -22,7 +22,8 @@ class MDTest_BM(RegressionTest):
         self.executable = os.path.join('src', 'mdtest', 'mdtest')
         items_per_rank = 1048576 / self.num_tasks
         test_dir = os.path.join('testdir')
-        exe_opts = '-v -F -C -T -r -n %s -d %s -N %s -i 1 ' % (items_per_rank, test_dir, self.num_tasks_per_node) 
+        exe_opts = '-v -F -C -T -r -n %s -d %s -N %s -i 1 ' % (items_per_rank, 
+                   test_dir, self.num_tasks_per_node) 
 
         if mdtest_type == 'shared':
           self.executable_opts = ('%s' % exe_opts).split()
@@ -31,7 +32,8 @@ class MDTest_BM(RegressionTest):
         elif mdtest_type == 'single':
           self.executable_opts = ('%s -s ' % exe_opts).split()
 
-        self.sanity_patterns = sn.assert_found(r'^\s+File creation', self.stdout)
+        self.sanity_patterns = sn.assert_found(r'^\s+File creation', 
+                                               self.stdout)
 
         p_name = "{}_creation".format(mdtest_type)
         self.perf_patterns = { p_name: sn.extractsingle(
@@ -63,7 +65,7 @@ class MDTest_BM(RegressionTest):
 
 class MDTest_PDT(RegressionTest):
     def __init__(self, procs, **kwargs):
-        super().__init__('MDTest_PDT_%c'%procs, os.path.dirname(__file__), **kwargs)
+        super().__init__('MDTest_PDT_%d'%procs, os.path.dirname(__file__), **kwargs)
         self.descr = 'MDTest check PDT' 
 
         if procs == 64:

@@ -41,7 +41,8 @@ class GA7UKCAcheck(RunOnlyRegressionTest):
 
         self.executable = "$ATMOS_EXEC"
 
-        um_dir = os.path.join(self.sourcesdir,'../source/um_ukca_10.4/build-atmos/bin/')
+        um_dir = os.path.join(self.sourcesdir,
+                              '../source/um_ukca_10.4/build-atmos/bin/')
         self.variables = {'UM_BASE_DIR': base_dir, 
                           'UM_ATM_NPROCX': str(s_x),
                           'UM_ATM_NPROCY': str(s_y),

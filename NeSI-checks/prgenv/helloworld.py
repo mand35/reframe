@@ -24,14 +24,17 @@ class HelloWorldBaseTest(RegressionTest):
         self.descr = self.lang_names[lang] + ' Hello World'
         self.sourcepath = 'hello_world'
 
+        
         self.valid_systems = ['kupe:compute', 'maui:compute']
+        # In Cray CS system only dynamic linking is allowed
+        if linkage in ['dynamic']:
+           self.valid_systems += ['mahuika:compute']
 
-        self.valid_prog_environs = ['PrgEnv-cray', 'PrgEnv-gnu',
-                                    'PrgEnv-intel']
+        self.valid_prog_environs = ['*']
 
         self.compilation_time_seconds = None
 
-        self.maintainers = ['Man', 'Man']
+        self.maintainers = ['Man']
         self.tags = {'production'}
 
     def setup(self, partition, environ, **job_opts):
@@ -88,7 +91,9 @@ class HelloWorldTestSerial(HelloWorldBaseTest):
         self.prgenv_flags = {
             'PrgEnv-cray': '',
             'PrgEnv-gnu': '',
-            'PrgEnv-intel': ''
+            'PrgEnv-intel': '',
+            'gnu': '',
+            'intel': ''
         }
         self.num_tasks = 1
         self.num_tasks_per_node = 1
@@ -103,7 +108,9 @@ class HelloWorldTestOpenMP(HelloWorldBaseTest):
         self.prgenv_flags = {
             'PrgEnv-cray': ' -homp ',
             'PrgEnv-gnu': ' -fopenmp ',
-            'PrgEnv-intel': ' -qopenmp '
+            'PrgEnv-intel': ' -qopenmp ',
+            'gnu': ' -fopenmp ',
+            'intel': ' -qopenmp '
         }
         self.num_tasks = 1
         self.num_tasks_per_node = 1
@@ -124,7 +131,9 @@ class HelloWorldTestMPI(HelloWorldBaseTest):
         self.prgenv_flags = {
             'PrgEnv-cray': '',
             'PrgEnv-gnu': '',
-            'PrgEnv-intel': ''
+            'PrgEnv-intel': '',
+            'gnu': '',
+            'intel': ''
         }
 
         # for the MPI test the self.num_tasks_per_node should always be one. If
@@ -143,7 +152,9 @@ class HelloWorldTestMPIOpenMP(HelloWorldBaseTest):
         self.prgenv_flags = {
             'PrgEnv-cray': ' -homp ',
             'PrgEnv-gnu': ' -fopenmp ',
-            'PrgEnv-intel': ' -qopenmp '
+            'PrgEnv-intel': ' -qopenmp ',
+            'gnu': ' -fopenmp ',
+            'intel': ' -qopenmp '
         }
         self.num_tasks = 6
         self.num_tasks_per_node = 3

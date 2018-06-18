@@ -58,25 +58,32 @@ class ReframeSettings:
             'mahuika': {
                 'descr': 'NIWA HPC1 system Mahuika (CS500)',
                 # Adjust to your system's hostname
-                'hostnames': ['mahuika01'],
+                'hostnames': ['mahuika02'],
                 'resourcesdir': '/scale_wlg_nobackup/filesets/nobackup/schoenherrm/180405_BM_tests/',
-                'modules_system': 'tmod',
+                #'modules_system': 'tmod',
                 'stagedir': '/scale_wlg_nobackup/filesets/nobackup/schoenherrm/reframe',
                 'partitions': {
                     'login': {
                         'scheduler': 'local',
-                        'modules': ['craype-broadwell'],
-                        'access':  [],
-                        'environs': ['PrgEnv-cray'],
+                        #'modules': ['craype-broadwell'],
+                        #'access':  [],
+                        'environs': ['PrgEnv-cray','gnu','intel'],
                         'descr': 'Login nodes',
                         'max_jobs': 4
                     },
                     'compute': {
                         'scheduler': 'nativeslurm',
-                        'modules': ['craype-broadwell'],
-                        'access':  ['--account=nesi99999'],
-                        'environs': ['PrgEnv-cray'],
+                        #'modules': ['craype-broadwell'],
+                        #'access':  [''],
+                        'environs': ['PrgEnv-cray','gnu','intel'],
                         'descr': 'CS500 compute nodes',
+                        'max_jobs': 100
+                    },
+                    'gpu': {
+                        'scheduler': 'nativeslurm',
+                        'access':  ['-p gpu'],
+                        'environs': ['PrgEnv-cray','gnu','intel'],
+                        'descr': 'CS500 gpu nodes',
                         'max_jobs': 100
                     },
                 }
@@ -101,6 +108,12 @@ class ReframeSettings:
                 'intel': {
                     'type': 'ProgEnvironment',
                     'modules': ['intel/compiler', 'intel/mpi'],
+                    'ftn': 'ifort', 'cc': 'icc', 'cxx': 'icpc',
+                },
+                'gnu': {
+                    'type': 'ProgEnvironment',
+                    'modules': ['gnu', 'cray-mvapich2-gnu'],
+                    'ftn': 'gfortran', 'cc': 'gcc', 'cxx': 'gxx',
                 }
             }
         }
