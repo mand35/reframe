@@ -24,7 +24,8 @@ class ReframeSettings:
                     'login': {
                         'scheduler': 'local',
                         #'modules': ['craype-x86-skylake'],
-			# due to the issue that the default gcc is 4.8.1, which does not support skylake
+			# due to the issue that the default gcc is 4.8.1, 
+                        #   which does not support skylake
                         'modules': ['craype-broadwell'],
                         'access':  [],
                         'environs': ['PrgEnv-cray', 'PrgEnv-gnu',
@@ -35,7 +36,8 @@ class ReframeSettings:
                     'compute': {
                         'scheduler': 'nativeslurm',
                         #'modules': ['craype-x86-skylake'],
-			# due to the issue that the default gcc is 4.8.1, which does not support skylake
+			# due to the issue that the default gcc is 4.8.1, 
+                        #   which does not support skylake
                         'modules': ['craype-broadwell'],  
                         'access':  ['--partition=NeSI --account=nesi99999'],
                         'environs': ['PrgEnv-cray', 'PrgEnv-gnu',
@@ -46,7 +48,8 @@ class ReframeSettings:
                     'CS_compute': {
                         'scheduler': 'nativeslurm',
                         #'modules': ['craype-x86-skylake'],
-                        # due to the issue that the default gcc is 4.8.1, which does not support skylake
+			# due to the issue that the default gcc is 4.8.1, 
+                        #   which does not support skylake
                         'modules': ['craype-broadwell'],
                         'access':  ['--partition=General --account=nesi99999'],
                         'environs': ['PrgEnv-gnu'],
@@ -65,6 +68,7 @@ class ReframeSettings:
                 'partitions': {
                     'login': {
                         'scheduler': 'local',
+                        'modules': ['PrgEnv-cray'],
                         #'modules': ['craype-broadwell'],
                         #'access':  [],
                         'environs': ['PrgEnv-cray','gnu','intel'],
@@ -72,7 +76,9 @@ class ReframeSettings:
                         'max_jobs': 4
                     },
                     'compute': {
-                        'scheduler': 'nativeslurm',
+                        # TODO 
+                        #'scheduler': 'nativeslurm',
+                        'scheduler': 'squeue+srun',
                         #'modules': ['craype-broadwell'],
                         #'access':  [''],
                         'environs': ['PrgEnv-cray','gnu','intel'],
@@ -80,7 +86,9 @@ class ReframeSettings:
                         'max_jobs': 100
                     },
                     'gpu': {
-                        'scheduler': 'nativeslurm',
+                        # TODO 
+                        #'scheduler': 'nativeslurm',
+                        'scheduler': 'squeue+srun',
                         'access':  ['-p gpu'],
                         'environs': ['PrgEnv-cray','gnu','intel'],
                         'descr': 'CS500 gpu nodes',
@@ -112,8 +120,8 @@ class ReframeSettings:
                 },
                 'gnu': {
                     'type': 'ProgEnvironment',
-                    'modules': ['gnu', 'cray-mvapich2-gnu'],
-                    'ftn': 'gfortran', 'cc': 'gcc', 'cxx': 'gxx',
+                    'modules': ['gcc', 'openmpi/gcc/64/1.10.3'],
+                    'ftn': 'mpifort', 'cc': 'mpicc', 'cxx': 'mpiCC',
                 }
             }
         }

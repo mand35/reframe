@@ -34,19 +34,21 @@ class MDTest_BM(RegressionTest):
 
         self.sanity_patterns = sn.assert_found(r'^\s+File creation', 
                                                self.stdout)
+        for obj in ['creation', 'stat', 'remove']:
+           p_name = "{0}_{1}".format(mdtest_type, obj)
+           self.perf_patterns = { p_name: sn.extractsingle(
+                 r'^\s+File {0}\s+:\s+(?P<'+p_name+'>\S+) '.format(obj), 
+                 self.stdout, p_name, float)
+           }
 
-        p_name = "{}_creation".format(mdtest_type)
-        self.perf_patterns = { p_name: sn.extractsingle(
-              r'^\s+File creation\s+:\s+(?P<'+p_name+'>\S+) ', self.stdout, p_name, float)
-        }
-        p_name = "{}_stat".format(mdtest_type)
-        self.perf_patterns = { p_name: sn.extractsingle(
-              r'^\s+File stat\s+:\s+(?P<'+p_name+'>\S+) ', self.stdout, p_name, float)
-        }
-        p_name = "{}_remove".format(mdtest_type)
-        self.perf_patterns = { p_name: sn.extractsingle(
-              r'^\s+File removal\s+:\s+(?P<'+p_name+'>\S+) ', self.stdout, p_name, float)
-        }
+#        p_name = "{}_stat".format(mdtest_type)
+#        self.perf_patterns = { p_name: sn.extractsingle(
+#              r'^\s+File stat\s+:\s+(?P<'+p_name+'>\S+) ', self.stdout, p_name, float)
+#        }
+#        p_name = "{}_remove".format(mdtest_type)
+#        self.perf_patterns = { p_name: sn.extractsingle(
+#              r'^\s+File removal\s+:\s+(?P<'+p_name+'>\S+) ', self.stdout, p_name, float)
+#        }
 
 
         self.reference = {
@@ -70,10 +72,8 @@ class MDTest_PDT(RegressionTest):
 
         if procs == 64:
 #TODO was Maui also running on 64 treads?
-          self.valid_systems = ['kupe:compute', 'maui:compute']
-        elif procs ==36:
-#TODO how mani PPN were used?
-          self.valid_systems = ['mahuika:compute']
+          self.valid_systems = ['kupe:compute', 'maui:compute', 
+                                'mahuika:compute']
         self.num_tasks = procs
         self.num_tasks_per_node = 16
         self.time_limit = (0, 35, 0)
@@ -91,7 +91,8 @@ class MDTest_PDT(RegressionTest):
         self.perf_patterns = {}
         p_names = {'creation', 'stat', 'removal'}
         for p_name in p_names:
-           self.perf_patterns[p_name] = sn.extractsingle(r'^\s+File '+p_name+'\s+:\s+(?P<'+p_name+'>\S+) ', self.stdout, p_name, float)
+           self.perf_patterns[p_name] = sn.extractsingle(r'^\s+File '+p_name+
+                    '\s+:\s+(?P<'+p_name+'>\S+) ', self.stdout, p_name, float)
 
         kupe_mdres = {}
         kupe_mdres['creation'] = (7747,  -(2*223.1)/7747, None)

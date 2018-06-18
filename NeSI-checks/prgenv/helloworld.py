@@ -45,18 +45,18 @@ class HelloWorldBaseTest(RegressionTest):
         self.sanity_patterns = sn.all(
             sn.chain([sn.assert_eq(sn.count(result), self.num_tasks *
                                    self.num_cpus_per_task)],
-                     sn.map(lambda x: sn.assert_lt(int(x.group(1)), int(x.group(2))),
-                            result),
-                     sn.map(lambda x: sn.assert_lt(int(x.group(3)), int(x.group(4))),
-                            result),
+                     sn.map(lambda x: sn.assert_lt(int(x.group(1)), 
+                            int(x.group(2))), result),
+                     sn.map(lambda x: sn.assert_lt(int(x.group(3)), 
+                            int(x.group(4))), result),
                      sn.map(lambda x: sn.assert_lt(int(x.group(1)),
-                                                   self.num_cpus_per_task), result),
+                            self.num_cpus_per_task), result),
                      sn.map(lambda x: sn.assert_eq(int(x.group(2)),
-                                                   self.num_cpus_per_task), result),
+                            self.num_cpus_per_task), result),
                      sn.map(lambda x: sn.assert_lt(int(x.group(3)),
-                                                   self.num_tasks), result),
-                     sn.map(lambda x: sn.assert_eq(int(x.group(4)), self.num_tasks),
-                            result),
+                            self.num_tasks), result),
+                     sn.map(lambda x: sn.assert_eq(int(x.group(4)), 
+                            self.num_tasks), result),
                      )
         )
 
