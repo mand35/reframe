@@ -35,17 +35,21 @@ class ANSYScheck(RunOnlyRegressionTest):
                            'head -%d > ./hosts'%self.num_tasks )
 
         # the actual task 'fluent' need to be started without srun
-        self.post_run = [('fluent -v3ddp -g -mpi=intel -i fluent_commands.txt'
+        self.post_run = [('fluent -v3ddp -g -mpi=intel -i fluent_commands.txt '
                           '-t{} -cnf=./hosts '.format(self.num_tasks)),
                    'end_secs=$(date +%s)',
-                   'let wallsecs=$end_secs-$beg_secs; echo "Time taken by ANSYS in seconds is:" $wallsecs']
+                   'let wallsecs=$end_secs-$beg_secs; ',
+                   'echo "Time taken by ANSYS in seconds is:" $wallsecs 1>&2']
 
-        self.sanity_patterns = sn.all([sn.assert_found(r'^\s*Writing "AC33aoa60coarse4LESavg.out.dat"', self.stdout)])
+        self.sanity_patterns = sn.all([
+           sn.assert_not_found(r'^\sANSYS LICENSE MANAGER ERROR',self.stdout),
+           sn.assert_found(r'^\s*Writing "AC33aoa60coarse4LESavg.out.dat"', 
+                           self.stdout)])
 
         p_name = "perf_{}".format(self.num_tasks)
         self.perf_patterns = {
-            p_name: sn.extractsingle(r'^Time taken by ANSYS in seconds is\s+(?P<'+p_name+'>\S+)',
-                                     self.stdout, p_name, float)
+            p_name: sn.extractsingle(r'^Time taken by ANSYS in seconds is:\s+(?P<'+p_name+'>\S+)',
+                                     self.stderr, p_name, float)
         }
 
 
@@ -59,11 +63,11 @@ class ANSYS_BM(ANSYScheck):
 
         self.reference = {
             'mahuika:compute': {
-                'perf_24':  (484, -0.10, None), 
-                'perf_10':  (821, -0.10, None), 
-                'perf_18':  (550, -0.10, None), 
-                'perf_36':  (420, -0.10, None), 
-                'perf_72':  (320, -0.10, None), 
+                'perf_24':  (484, None, 0.10), 
+                'perf_10':  (821, None, 0.10), 
+                'perf_18':  (550, None, 0.10), 
+                'perf_36':  (420, None, 0.10), 
+                'perf_72':  (320, None, 0.10), 
             },
         }
         self.tags |= {'BM'}
@@ -75,7 +79,7 @@ class ANSYS_PDT(ANSYScheck):
 
         self.reference = {
             'mahuika:compute': {
-                'perf_24':  (465.0, -(2*1.78)/465.0, None), 
+                'perf_24':  (465.0, None, (2*1.78)/465.0), 
             },
         }
         self.tags |= {'PDT'}

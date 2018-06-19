@@ -80,13 +80,13 @@ class NAMD_BM(NAMDBaseCheck):
 
        self.reference = {     
            'mahuika:compute': {
-                'perf_12':  (750, -0.10, None), 
-                'perf_10':  (851, -0.10, None), # 25%
-                'perf_18':  (549, -0.10, None), # 50%
-                'perf_36':  (334, -0.10, None), #100%
-                'perf_72':  (117, -0.10, None), #200%
-                'perf_108': (134, -0.10, None), #300%
-                'perf_144': (114, -0.10, None), #400%
+                'perf_12':  (750, None, 0.10), 
+                'perf_10':  (851, None, 0.10), # 25%
+                'perf_18':  (549, None, 0.10), # 50%
+                'perf_36':  (334, None, 0.10), #100%
+                'perf_72':  (117, None, 0.10), #200%
+                'perf_108': (134, None, 0.10), #300%
+                'perf_144': (114, None, 0.10), #400%
            }
        }
        self.tags = {'BM'}
@@ -100,7 +100,7 @@ class NAMD_PDT(NAMDBaseCheck):
 
        self.reference = {     
            'mahuika:compute': {
-                'perf_12':  (740, -(2*5.58)/740, None),
+                'perf_12':  (740, None, (2*5.58)/740),
            }
        }
        self.tags = {'PDT'}

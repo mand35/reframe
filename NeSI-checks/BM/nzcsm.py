@@ -124,7 +124,7 @@ class NZCSM_BM(NZCSMcheck):
 
         self.reference = {
             'kupe:compute': {
-                'perf_512':  (1581, None, 0.10), #TODO still need to calculate the 2*standard deviation, which PDT should not outreach
+                'perf_512':  (1581, None, 0.10), 
                 'perf_1024': ( 878, None, 0.10),
                 'perf_1440': ( 653, None, 0.10)
             },
@@ -137,7 +137,7 @@ class NZCSM_PDT(NZCSMcheck):
 
         self.reference = {
             'kupe:compute': {
-               'perf_1024': ( 446.6, None, 1.0125),  ## cray provided  446.6+(2*2.8) = 452.2  
+               'perf_1024': ( 446.6, None, 1.0125), ## cray provided  446.6+(2*2.8) = 452.2  
                'perf_512':  (   805, None, 1.0124), ## not measures, just estimated  805+(2*5)
             },
             'maui:compute': {

@@ -25,7 +25,11 @@ class GromacsBaseCheck(RunOnlyRegressionTest):
                           'OMP_NUM_THREADS': str(self.num_cpus_per_task)
         }
         gmx_dir = os.path.join(self.sourcesdir,'../executable')
-        self.pre_run = ['source {}/gmx-completion-mdrun_mpi.bash'.format(gmx_dir)]
+        self.pre_run = ['module load cray-fftw/3.3.6.3 cuda90/toolkit/9.0.176',
+           'module load intel/compiler/64/2017/17.0.6 intel/mpi/64/2017/6.256',
+           'module load gcc/6.3.0',
+           'module swap gcc gcc5/5.5.0',
+           'source {}/gmx-completion-mdrun_mpi.bash'.format(gmx_dir)]
         self.exclusive = True
         self.use_multithreading=False
         self.num_cpus_per_task = 1
@@ -39,7 +43,7 @@ class GromacsBaseCheck(RunOnlyRegressionTest):
                 ('let wallsecs=$end_secs-$beg_secs; '
                  'echo "Time taken by GROMACS in seconds is:" $wallsecs')]
 
-        self.sanity_patterns = sn.assert_found('Performance:', self.stdout)
+        self.sanity_patterns = sn.assert_found('Performance:', self.stderr)
 
         p_name = "perf_{}".format(self.num_tasks)
         self.perf_patterns = {
@@ -52,6 +56,10 @@ class GromacsBaseCheck(RunOnlyRegressionTest):
         self.strict_check = True
         self.use_multithreading = False
 
+    def setup(self, partition, environ, **job_opts):
+        super().setup(partition, environ, **job_opts)
+        self.job.launcher.options += ['--mpi=pmi2']
+
 class GromacsCPU_BM(GromacsBaseCheck):
     def __init__(self, tasks, **kwargs):
        super().__init__('gromacs_CPU_BM_{}'.format(tasks), tasks, **kwargs)
@@ -61,10 +69,10 @@ class GromacsCPU_BM(GromacsBaseCheck):
 
        self.reference = {
            'mahuika:compute': {
-                'perf_8':   (389, -0.10, None),
-                'perf_10':  (325, -0.10, None),
-                'perf_18':  (216, -0.10, None),
-                'perf_36':  (136, -0.10, None),
+                'perf_8':   (389, None, 0.10),
+                'perf_10':  (325, None, 0.10),
+                'perf_18':  (216, None, 0.10),
+                'perf_36':  (136, None, 0.10),
            }
        }
        self.tags = {'BM'}
@@ -81,7 +89,7 @@ class GromacsGPU_BM(GromacsBaseCheck):
 
        self.reference = {     
            'mahuika:gpu': {
-                'perf_1':  (198, -0.10, None),
+                'perf_1':  (198, None, 0.10),
            }
        }
        self.tags = {'BM'}
@@ -98,7 +106,7 @@ class GromacsGPU_PDT(GromacsBaseCheck):
 
        self.reference = {     
            'mahuika:gpu': {
-                'perf_1':  (203, -(2*0.09)/203, None),
+                'perf_1':  (203, None, (2*0.09)/203),
            }
        }
        self.tags = {'PDT'}

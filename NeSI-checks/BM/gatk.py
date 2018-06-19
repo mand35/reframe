@@ -99,10 +99,10 @@ class GATK_BM(GATKBaseCheck):
 
        self.reference = {     
            'mahuika:compute': {
-                'perf_1':  (279, -0.10, None), 
-                'perf_2':  (185, -0.10, None), 
-                'perf_4':  (124, -0.10, None), 
-                'perf_8':  ( 95, -0.10, None), 
+                'perf_1':  (279, None, 0.10), 
+                'perf_2':  (185, None, 0.10), 
+                'perf_4':  (124, None, 0.10), 
+                'perf_8':  ( 95, None, 0.10), 
            }
        }
        self.tags = {'BM'}
@@ -117,7 +117,7 @@ class GATK_PDT(GATKBaseCheck):
 
        self.reference = {     
            'mahuika:compute': {
-                'perf_1':  (264, -(2*1.96)/264, None), 
+                'perf_1':  (264, None, (2*1.96)/264), 
            }
        }
        self.tags = {'PDT'}
