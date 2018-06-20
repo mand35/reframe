@@ -41,16 +41,6 @@ class MDTest_BM(RegressionTest):
                  self.stdout, p_name, float)
            }
 
-#        p_name = "{}_stat".format(mdtest_type)
-#        self.perf_patterns = { p_name: sn.extractsingle(
-#              r'^\s+File stat\s+:\s+(?P<'+p_name+'>\S+) ', self.stdout, p_name, float)
-#        }
-#        p_name = "{}_remove".format(mdtest_type)
-#        self.perf_patterns = { p_name: sn.extractsingle(
-#              r'^\s+File removal\s+:\s+(?P<'+p_name+'>\S+) ', self.stdout, p_name, float)
-#        }
-
-
         self.reference = {
             'kupe:compute': {
                 'shared_creation': (20000, None, 0.05), 
