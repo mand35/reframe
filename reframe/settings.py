@@ -58,13 +58,73 @@ class ReframeSettings:
                     }
                 }
             },
+            'maui': {
+                'descr': 'NIWA HPC2 system Maui (XC50 CS500)',
+                # Adjust to your system's hostname
+                'hostnames': ['maui01','maui02', 'maui-internallogin01'],
+#                'resourcesdir': '/home/schoenherrm/projects/reframe/kupe_tests',
+                'resourcesdir': '/scale_wlg_nobackup/filesets/nobackup/schoenherrm/180405_BM_tests/',
+                'modules_system': 'tmod',
+                'stagedir': '/scale_wlg_nobackup/filesets/nobackup/schoenherrm/reframe/maui',
+                'partitions': {
+                    'login': {
+                        'scheduler': 'local',
+                        #'modules': ['craype-x86-skylake'],
+                        # due to the issue that the default gcc is 4.8.1,
+                        #   which does not support skylake
+                        'modules': ['craype-broadwell'],
+                        'access':  [],
+                        'environs': ['PrgEnv-cray', 'PrgEnv-gnu',
+                                     'PrgEnv-intel'],
+                        'descr': 'Login nodes',
+                        'max_jobs': 4
+                    },
+                    'compute': {
+                        #TODO
+                        #'scheduler': 'nativeslurm',
+                        'scheduler': 'squeue+srun',
+                        #'modules': ['craype-x86-skylake'],
+                        # due to the issue that the default gcc is 4.8.1,
+                        #   which does not support skylake
+                        'modules': ['craype-broadwell'],
+                        'access':  [''],
+                        'environs': ['PrgEnv-cray', 'PrgEnv-gnu',
+                                     'PrgEnv-intel'],
+                        'descr': 'XC compute nodes',
+                        'max_jobs': 100
+                    },
+                    'gpu': {
+                        'scheduler': 'nativeslurm',
+                        #'modules': ['craype-x86-skylake'],
+                        # due to the issue that the default gcc is 4.8.1,
+                        #   which does not support skylake
+                        'modules': ['craype-broadwell'],
+                        'access':  [''],
+                        'environs': ['PrgEnv-cray', 'PrgEnv-gnu',
+                                     'PrgEnv-intel'],
+                        'descr': 'CS gpu nodes',
+                        'max_jobs': 10
+                    },
+                    'CS_compute': {
+                        'scheduler': 'nativeslurm',
+                        #'modules': ['craype-x86-skylake'],
+                        # due to the issue that the default gcc is 4.8.1,
+                        #   which does not support skylake
+                        'modules': ['craype-broadwell'],
+                        'access':  ['-p gpu'],
+                        'environs': ['PrgEnv-gnu'],
+                        'descr': 'CS compute nodes',
+                        'max_jobs': 100
+                    }
+                }
+            },
             'mahuika': {
                 'descr': 'NIWA HPC1 system Mahuika (CS500)',
                 # Adjust to your system's hostname
                 'hostnames': ['mahuika02'],
                 'resourcesdir': '/scale_wlg_nobackup/filesets/nobackup/schoenherrm/180405_BM_tests/',
                 #'modules_system': 'tmod',
-                'stagedir': '/scale_wlg_nobackup/filesets/nobackup/schoenherrm/reframe',
+                'stagedir': '/scale_wlg_nobackup/filesets/nobackup/schoenherrm/reframe/mahuika',
                 'partitions': {
                     'login': {
                         'scheduler': 'local',
@@ -80,7 +140,7 @@ class ReframeSettings:
                         #'scheduler': 'nativeslurm',
                         'scheduler': 'squeue+srun',
                         #'modules': ['craype-broadwell'],
-                        #'access':  [''],
+                        'access':  ['--exclusive'],
                         'environs': ['PrgEnv-cray','gnu','intel'],
                         'descr': 'CS500 compute nodes',
                         'max_jobs': 100
