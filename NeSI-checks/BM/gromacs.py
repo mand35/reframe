@@ -3,6 +3,7 @@ import os
 
 import reframe.utility.sanity as sn
 from reframe.core.pipeline import RunOnlyRegressionTest
+from reframe.utility.multirun import multirun
 
 
 class GromacsBaseCheck(RunOnlyRegressionTest):
@@ -25,30 +26,39 @@ class GromacsBaseCheck(RunOnlyRegressionTest):
                           'OMP_NUM_THREADS': str(self.num_cpus_per_task)
         }
         gmx_dir = os.path.join(self.sourcesdir,'../executable')
-        self.pre_run = ['module load cray-fftw/3.3.6.3 cuda90/toolkit/9.0.176',
-           'module load intel/compiler/64/2017/17.0.6 intel/mpi/64/2017/6.256',
-           'module load gcc/6.3.0',
-           'module swap gcc gcc5/5.5.0',
-           'source {}/gmx-completion-mdrun_mpi.bash'.format(gmx_dir)]
+
         self.exclusive = True
         self.use_multithreading=False
         self.num_cpus_per_task = 1
         self.num_tasks = tasks
         self.num_tasks_per_node = tasks
-        # cannot be mapped: --mpi=pmi2 --cpu_bind=core --mem_bind=v,local -c ${OMP_NUM_THREADS}
-        self.executable = '{}/mdrun_mpi'.format(gmx_dir)
-        self.executable_opts = ('-v -deffnm 1aki_md1 -dlb no -noconfout').split()
-        self.pre_run.append('beg_secs=$(date +%s)')
-        self.post_run = ['end_secs=$(date +%s)',
-                ('let wallsecs=$end_secs-$beg_secs; '
-                 'echo "Time taken by GROMACS in seconds is:" $wallsecs')]
 
-        self.sanity_patterns = sn.assert_found('Performance:', self.stderr)
+        self.pre_run = ['module load cray-fftw/3.3.6.3 cuda90/toolkit/9.0.176',
+           'module load intel/compiler/64/2017/17.0.6 intel/mpi/64/2017/6.256',
+           'module load gcc/6.3.0',
+           'module swap gcc gcc5/5.5.0',
+           'source {}/gmx-completion-mdrun_mpi.bash'.format(gmx_dir)]
+
+        self.executable = '{}/mdrun_mpi'.format(gmx_dir)
+        self.executable_opts = ('-v -deffnm 1aki_md1 -dlb no ' 
+                                '-noconfout').split()
+        # time meassure for performance
+        ref_desc = 'Time taken by GROMACS in seconds is:'
+        self.multirun_pre_run = ['beg_secs=$(date +%s)']
+        self.multirun_post_run = ['end_secs=$(date +%s)',
+                ('let wallsecs=$end_secs-$beg_secs; '
+                 'echo "{}" $wallsecs'.format(ref_desc))]
+
+        self.multirun_san_pat = ['Performance:', self.stderr]
+        self.sanity_patterns = sn.assert_found(*self.multirun_san_pat)
 
         p_name = "perf_{}".format(self.num_tasks)
+        self.multirun_perf_pat = {}
+        self.multirun_perf_pat[p_name] = [
+                               r'^{}\s+(?P<perf>\S+)'.format(ref_desc),
+                               self.stdout, 'perf', float]
         self.perf_patterns = {
-            p_name: sn.extractsingle(r'^Time taken by GROMACS in seconds is:''\s+(?P<'+p_name+'>\S+)',
-                                     self.stdout, p_name, float)
+            p_name: sn.extractsingle(*(self.multirun_perf_pat[p_name]))
         }
 
         self.modules = ['GROMACS']
@@ -58,9 +68,17 @@ class GromacsBaseCheck(RunOnlyRegressionTest):
 
     def setup(self, partition, environ, **job_opts):
         super().setup(partition, environ, **job_opts)
-        self.job.launcher.options += ['--mpi=pmi2']
+        self.job.launcher.options += ['--mpi=pmi2 --cpu_bind=core '
+                                      '--mem_bind=v,local']
 
-class GromacsCPU_BM(GromacsBaseCheck):
+class GromacsBM_Base(GromacsBaseCheck):
+    def __init__(self, name, tasks, **kwargs):
+       super().__init__(name, tasks, **kwargs)
+       self.pre_run += self.multirun_pre_run
+       self.post_run += self.multirun_post_run
+       self.tags = {'BM'}
+
+class GromacsCPU_BM(GromacsBM_Base):
     def __init__(self, tasks, **kwargs):
        super().__init__('gromacs_CPU_BM_{}'.format(tasks), tasks, **kwargs)
 
@@ -75,10 +93,9 @@ class GromacsCPU_BM(GromacsBaseCheck):
                 'perf_36':  (136, None, 0.10),
            }
        }
-       self.tags = {'BM'}
 
 
-class GromacsGPU_BM(GromacsBaseCheck):
+class GromacsGPU_BM(GromacsBM_Base):
     def __init__(self, tasks, **kwargs):
        super().__init__('gromacs_gpu_BM_{}'.format(tasks), tasks, **kwargs)
 
@@ -92,29 +109,27 @@ class GromacsGPU_BM(GromacsBaseCheck):
                 'perf_1':  (198, None, 0.10),
            }
        }
-       self.tags = {'BM'}
-       self.tags = {'GPU'}
+       self.tags |= {'GPU'}
 
 
 class GromacsGPU_PDT(GromacsBaseCheck):
-    def __init__(self, tasks, **kwargs):
-       super().__init__('gromacs_gpu_PDT_{}'.format(tasks), tasks, **kwargs)
+    def __init__(self, name, tasks, **kwargs):
+       super().__init__('gromacs_gpu_PDT_{0}_{1}'.format(tasks, name), 
+                        tasks, **kwargs)
 
        self.num_gpus_per_node = 1
        self.valid_systems = ['mahuika:gpu']
-       self.descr = 'GROMACS GPU PDT'
-
-       self.reference = {     
+       self.descr = 'GROMACS GPU PDT {}'.format(name)
+       self.multirun_ref = {     
            'mahuika:gpu': {
                 'perf_1':  (203, None, (2*0.09)/203),
            }
        }
-       self.tags = {'PDT'}
-       self.tags = {'GPU'}
+       self.tags = {'PDT', 'GPU'}
 
 def _get_checks(**kwargs):
     return [GromacsGPU_BM(1, **kwargs),
-            GromacsGPU_PDT(1, **kwargs),
+            multirun(GromacsGPU_PDT)('',1, **kwargs),
 
             GromacsCPU_BM(8, **kwargs),
             GromacsCPU_BM(10, **kwargs),

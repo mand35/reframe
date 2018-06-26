@@ -4,7 +4,7 @@ import os
 import reframe.utility.sanity as sn
 from reframe.core.pipeline import RunOnlyRegressionTest
 from reframe.core.launchers import JobLauncher
-
+from reframe.utility.multirun import multirun
 
 class NAMDBaseCheck(RunOnlyRegressionTest):
     def __init__(self, name, tasks, **kwargs):
@@ -17,6 +17,13 @@ class NAMDBaseCheck(RunOnlyRegressionTest):
         self.sourcesdir = os.path.join(self.current_system.resourcesdir,
                                        'NAMD/input')
         self.time_limit = (0, 30,0)
+        self.exclusive = True
+        self.use_multithreading=False
+        self.num_tasks = tasks
+        self.num_tasks_per_node = tasks
+        self.num_tasks_per_socket = int(tasks/2)
+        self.num_cpus_per_task = 1
+        
         self.variables = {
            'OMP_NUM_THREADS': str(self.num_cpus_per_task),
            'I_MPI_FABRICS': '"shm:ofa"'
@@ -33,33 +40,32 @@ class NAMDBaseCheck(RunOnlyRegressionTest):
                                'RMSD_open.in', 
                                'benchmark.conf', 'open_core_meta_01.dcd']
 
-        self.exclusive = True
-        self.use_multithreading=False
-        self.num_tasks = tasks
-        self.num_tasks_per_node = tasks
-        self.num_tasks_per_socket = int(tasks/2)
-        self.num_cpus_per_task = 1
-        # cannot be mapped: --mpi=pmi2 
         self.executable = os.path.join(self.sourcesdir, '../executable/namd2')
-        self.executable_opts = ('benchmark.conf').split()
+        self.executable_opts = ['benchmark.conf']
 
         self.pre_run = [
                         'module load cray-fftw/3.3.6.3',
                         'export LD_LIBRARY_PATH=$CRAY_LD_LIBRARY_PATH:$LD_LIBRARY_PATH',
                         'module load gcc/6.3.0', 
                         'module load intel/compiler/64/2017/17.0.6',
-                        'module load intel/mpi/64/2018/1.163',
-                        'beg_secs=$(date +%s)']
-        self.post_run = ['end_secs=$(date +%s)',
-           'let wallsecs=$end_secs-$beg_secs' ,
-           'echo "Time taken by NAMD in seconds is:" $wallsecs']
+                        'module load intel/mpi/64/2018/1.163']
 
-        self.sanity_patterns = sn.assert_found('End of program', self.stdout)
+        ref_desc = 'Time taken by NAMD in seconds is:'
+        self.multirun_pre_run = ['beg_secs=$(date +%s)']
+        self.multirun_post_run = ['end_secs=$(date +%s)',
+           'let wallsecs=$end_secs-$beg_secs' ,
+           'echo "{}" $wallsecs'.format(ref_desc)]
+
+        self.multirun_san_pat = ['End of program', self.stdout]
+        self.sanity_patterns = sn.assert_found(*self.multirun_san_pat)
 
         p_name = "perf_{}".format(self.num_tasks)
+        self.multirun_perf_pat = {} 
+        self.multirun_perf_pat[p_name] = [
+           r'^{0}\s+(?P<{1}>\S+)'.format(ref_desc,p_name), 
+           self.stdout, p_name, float]
         self.perf_patterns = {
-            p_name: sn.extractsingle(r'^Time taken by NAMD in seconds is:\s+(?P<'+p_name+'>\S+)',
-                                     self.stdout, p_name, float)
+            p_name: sn.extractsingle(*(self.multirun_perf_pat[p_name]))
         }
 
         self.maintainers = ['man']
@@ -69,11 +75,13 @@ class NAMDBaseCheck(RunOnlyRegressionTest):
     def setup(self, partition, environ, **job_opts):
         super().setup(partition, environ, **job_opts)
         self.job.launcher.options += ['--mpi=pmi2']  # we need to run it with PMI2
-        #self.job.launcher = JobLauncher(options=['--mpi=pmi2'])
 
 class NAMD_BM(NAMDBaseCheck):
     def __init__(self, tasks, **kwargs):
        super().__init__('NAMD_BM_%s'%tasks, tasks, **kwargs)
+
+       self.pre_run += self.multirun_pre_run
+       self.post_run += self.multirun_post_run
 
        self.valid_systems = ['mahuika:compute']
        self.descr = 'NAMD BM'
@@ -92,13 +100,13 @@ class NAMD_BM(NAMDBaseCheck):
        self.tags = {'BM'}
 
 class NAMD_PDT(NAMDBaseCheck):
-    def __init__(self, tasks, **kwargs):
-       super().__init__('namd_PDT_%d'%tasks, tasks, **kwargs)
+    def __init__(self, name, tasks, **kwargs):
+       super().__init__('namd_PDT_{0}_{1}'.format(tasks,name), tasks, **kwargs)
 
        self.valid_systems = ['mahuika:compute']
        self.descr = 'NAMD PDT'
 
-       self.reference = {     
+       self.multirun_ref = {     
            'mahuika:compute': {
                 'perf_12':  (740, None, (2*5.58)/740),
            }
@@ -110,5 +118,5 @@ def _get_checks(**kwargs):
             NAMD_BM(10, **kwargs),
             NAMD_BM(18, **kwargs),
             NAMD_BM(36, **kwargs),
-            NAMD_PDT(12,**kwargs)
+            multirun(NAMD_PDT)('', 12, **kwargs)
            ]

@@ -2,11 +2,12 @@ import os
 import reframe.utility.sanity as sn
 
 from reframe.core.pipeline import RegressionTest
-
+from reframe.utility.multirun import multirun
 
 class MDTest_BM(RegressionTest):
     def __init__(self, mdtest_type, **kwargs):
-        super().__init__('MDTest_%s'%mdtest_type, os.path.dirname(__file__), **kwargs)
+        super().__init__('MDTest_%s'%mdtest_type, os.path.dirname(__file__), 
+                         **kwargs)
         self.descr = 'MDTest check (%s)' % mdtest_type
         self.tags = {'ops', mdtest_type}
 
@@ -47,6 +48,16 @@ class MDTest_BM(RegressionTest):
                 'unique_creation': (26245, None, 0.05), 
                 'single_creation': (36757, None, 0.05), 
             },
+            'mahuika:compute': {
+                'shared_creation': (20000, 0.10, None),
+                'unique_creation': (0, None, 0.05),
+                'single_creation': (36757, None, 0.05),
+            },
+            'maui:compute': {
+                'shared_creation': (20000, None, 0.05),
+                'unique_creation': (26245, None, 0.05),
+                'single_creation': (36757, None, 0.05),
+            },
         }
 
         self.maintainers = ['Man']
@@ -56,8 +67,9 @@ class MDTest_BM(RegressionTest):
         super().compile(options=' -C src/mdtest CC=cc ')
 
 class MDTest_PDT(RegressionTest):
-    def __init__(self, procs, **kwargs):
-        super().__init__('MDTest_PDT_%d'%procs, os.path.dirname(__file__), **kwargs)
+    def __init__(self, name, procs, **kwargs):
+        super().__init__('MDTest_PDT_{0}_{1}'.format(procs, name), 
+                         os.path.dirname(__file__), **kwargs)
         self.descr = 'MDTest check PDT' 
 
         if procs == 64:
@@ -76,19 +88,20 @@ class MDTest_PDT(RegressionTest):
         test_dir = os.path.join('testdir')
         self.executable_opts = '-F -C -T -r -n 16384 -N 16 -d {}'.format(test_dir).split()
 
-        self.sanity_patterns = sn.assert_found(r'^\s+File creation', self.stdout)
+        self.multirun_san_pat = [r'^\s+File creation', self.stdout]
+        self.sanity_patterns = sn.assert_found(*self.multirun_san_pat)
 
+        self.multirun_perf_pat = {}
         self.perf_patterns = {}
         p_names = {'creation', 'stat', 'removal'}
         for p_name in p_names:
-           self.perf_patterns[p_name] = sn.extractsingle(r'^\s+File '+p_name+
-                    '\s+:\s+(?P<'+p_name+'>\S+) ', self.stdout, p_name, float)
+           self.multirun_perf_pat[p_name] = [
+              r'^\s+File {}\s+:\s+(?P<perf>\S+)'.format(p_name), 
+              self.stdout, 'perf', float]
+           self.perf_patterns[p_name] = sn.extractsingle(
+                                           *(self.multirun_perf_pat[p_name]))
 
-        kupe_mdres = {}
-        kupe_mdres['creation'] = (7747,  -(2*223.1)/7747, None)
-        kupe_mdres['stat'] =     (16527, -(2*558.2)/16527,None)
-        kupe_mdres['removal'] =  (7355, -(2*173.1)/7355, None)
-        self.reference = {
+        self.multirun_ref = {
             'kupe:compute' : {
                 'creation' : (7747,  -(2*223.1)/7747, None),
                 'stat' :     (16527, -(2*558.2)/16527,None),
@@ -118,7 +131,7 @@ def _get_checks(**kwargs):
            #MDTest_BM('shared', **kwargs),
            MDTest_BM('unique', **kwargs),
            MDTest_BM('single', **kwargs),
-           MDTest_PDT(64, **kwargs),
-           MDTest_PDT(36, **kwargs) # Mahuika
+           multirun(MDTest_PDT)('', 64, **kwargs),
+           multirun(MDTest_PDT)('', 36, **kwargs) # Mahuika
     ]
     return ret

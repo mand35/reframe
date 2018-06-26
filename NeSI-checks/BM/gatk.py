@@ -3,7 +3,7 @@ import os
 
 import reframe.utility.sanity as sn
 from reframe.core.pipeline import RunOnlyRegressionTest
-
+from reframe.utility.multirun import multirun
 
 class GATKBaseCheck(RunOnlyRegressionTest):
     def __init__(self, name, threads, **kwargs):
@@ -12,6 +12,7 @@ class GATKBaseCheck(RunOnlyRegressionTest):
         self.sourcesdir = os.path.join(self.current_system.resourcesdir,
                                        'GATK/input')
         self.valid_prog_environs = ['PrgEnv-cray']
+
         self.exclusive = True
         self.use_multithreading=False
         self.num_tasks = 1
@@ -73,26 +74,38 @@ class GATKBaseCheck(RunOnlyRegressionTest):
                                '-nt {}'.format(self.num_cpus_per_task) ,
                                '-log GATK.log']
 
-        self.pre_run = ['beg_secs=$(date +%s)']
-        self.post_run = ['end_secs=$(date +%s)',
-                         'let wallsecs=$end_secs-$beg_secs',
-                         'echo "Time taken by GATK in seconds is:" $wallsecs']
+        ref_desc = 'Time taken by GATK in seconds is:'
 
-        self.sanity_patterns = sn.assert_found('Done.', self.stdout)
+        self.multirun_pre_run = ['beg_secs=$(date +%s)']
+        self.multirun_post_run = ['end_secs=$(date +%s)',
+                         'let wallsecs=$end_secs-$beg_secs',
+                         'echo "{}" $wallsecs'.format(ref_desc)]
+
+        self.multirun_san_pat = ['Done.', self.stdout]
+        self.sanity_patterns = sn.assert_found(*self.multirun_san_pat)
 
         p_name = "perf_{}".format(threads)
+        self.multirun_perf_pat = {}
+        self.multirun_perf_pat[p_name] = [
+           r'^{}\s+(?P<perf>\S+)'.format(ref_desc),
+           self.stdout, 'perf', float]
         self.perf_patterns = {
-            p_name: sn.extractsingle(r'^Time taken by GATK in seconds is:\s+(?P<'+p_name+'>\S+)',
-                                     self.stdout, p_name, float)
+            p_name: sn.extractsingle(*(self.multirun_perf_pat[p_name]))
         }
 
         self.maintainers = ['man']
         self.strict_check = True
         self.use_multithreading = False
+    def setup(self, partition, environ, **job_opts):
+        super().setup(partition, environ, **job_opts)
+        self.job.launcher.options += ['--mem_bind=local']
 
 class GATK_BM(GATKBaseCheck):
     def __init__(self, threads, **kwargs):
        super().__init__('GATK_BM_{}'.format(threads), threads, **kwargs)
+
+       self.pre_run += self.multirun_pre_run
+       self.post_run += self.multirun_post_run
 
        self.valid_systems = ['mahuika:compute']
        self.descr = 'GATK BM'
@@ -109,13 +122,14 @@ class GATK_BM(GATKBaseCheck):
 
 
 class GATK_PDT(GATKBaseCheck):
-    def __init__(self, threads, **kwargs):
-       super().__init__('GATK_PDT_{}'.format(threads), threads, **kwargs)
+    def __init__(self, name, threads, **kwargs):
+       super().__init__('GATK_PDT_{0}_{1}'.format(threads, name), 
+                        threads, **kwargs)
 
        self.valid_systems = ['mahuika:compute']
        self.descr = 'GATK PDT'
 
-       self.reference = {     
+       self.multirun_ref = {     
            'mahuika:compute': {
                 'perf_1':  (264, None, (2*1.96)/264), 
            }
@@ -127,5 +141,5 @@ def _get_checks(**kwargs):
             GATK_BM(2, **kwargs),
             GATK_BM(4, **kwargs),
             GATK_BM(8, **kwargs),
-            GATK_PDT(1,**kwargs)
+            multirun(GATK_PDT)('', 1,**kwargs)
            ]

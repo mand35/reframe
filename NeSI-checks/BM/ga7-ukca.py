@@ -2,7 +2,7 @@ import os
 
 import reframe.utility.sanity as sn
 from reframe.core.pipeline import RunOnlyRegressionTest
-
+from reframe.utility.multirun import multirun
 
 class GA7UKCAcheck(RunOnlyRegressionTest):
     def __init__(self, name, s_x, s_y, **kwargs):
@@ -20,7 +20,6 @@ class GA7UKCAcheck(RunOnlyRegressionTest):
         self.time_limit = (2, 00,0)
         self.use_multithreading = False
 
-
         self.modules = ['craype-hugepages8M']
         self.modules = ['craype-broadwell']
         self.modules = ['cray-hdf5/1.10.1.1']
@@ -28,16 +27,13 @@ class GA7UKCAcheck(RunOnlyRegressionTest):
 
         self.readonly_files = ['ad317.astart']
 
+        out_file = 'GA7-UKCA.out'
         base_dir = os.path.join(self.current_system.resourcesdir,'GA7-UKCA')
         prescript = os.path.join(self.sourcesdir, '../scripts/nesi_um-atmos')
-        self.pre_run = ["source " + prescript, 'ulimit -s unlimited']
-
-        self.pre_run.append('mkdir History_Data/')
-        self.pre_run.append('mkdir History_Data/seedfiles')
+        self.pre_run = ['echo "start GA7-UKCA" > {}'.format(out_file)]
+   
         self.pre_run.append("source $UMDIR/ancils")
         self.pre_run.append('ulimit -s unlimited')
-
-        self.pre_run.append('beg_secs=$(date +%s)')
 
         self.executable = "$ATMOS_EXEC"
 
@@ -57,7 +53,8 @@ class GA7UKCAcheck(RunOnlyRegressionTest):
                           'ATMOS_EXEC': os.path.join(um_dir,'um-atmos.exe'),
                           'UM_INSTALL_DIR': um_dir,
 			  'UMDIR': os.path.join(self.sourcesdir,'../input'),
-                          'SPECTRAL_FILE_DIR': '$UMDIR/vn10.4/ctldata/spectral/ga7',
+                          'SPECTRAL_FILE_DIR': 
+                              '$UMDIR/vn10.4/ctldata/spectral/ga7',
                           'DATAM': 'History_Data',
                           'HISTORY': 'History_Data/ad317.xhist',
                           'MODELBASIS': '"1981,09,01,00,00,00"',
@@ -77,15 +74,30 @@ class GA7UKCAcheck(RunOnlyRegressionTest):
                           'VN': '10.4',
         }
 
-        self.post_run.append('end_secs=$(date +%s)')
-        self.post_run.append('let wallsecs=$end_secs-$beg_secs; echo "Time taken by GA7-UKCA in seconds is " $wallsecs')
+        self.multirun_pre_run = ['rm -rf History_Data',
+                                 'mkdir History_Data/',
+                                 'mkdir History_Data/seedfiles']
+        ref_desc = 'Time taken by GA7-UKCA in seconds is: '
+        self.multirun_pre_run += ['source ' + prescript, 
+                                  'beg_secs=$(date +%s)']
+        self.multirun_post_run = ['end_secs=$(date +%s)',
+           'let wallsecs=$end_secs-$beg_secs', 
+           'echo "{}" $wallsecs'.format(ref_desc), 
+           'cat {0} >> {1}'.format('pe_output/ad317.fort6.pe{}'.format(
+                                   '0'*len(str(s_x*s_y))), out_file),
+           'rm -rf pe_output']
 
-        self.sanity_patterns = sn.all([sn.assert_found(r'End of UM RUN Job', 'pe_output/ad317.fort6.pe000')])
+        self.multirun_san_pat = [r'End of UM RUN Job', out_file]
+        self.sanity_patterns = sn.assert_found(*self.multirun_san_pat)
 
-        p_name = "perf_%s"%self.num_tasks
+        p_name = "perf_{}".format(self.num_tasks)
+        self.multirun_perf_pat = {}
+        self.multirun_perf_pat[p_name] = [ 
+           r'^{}\s+(?P<perf>\S+)'.format(ref_desc),
+           self.stdout, 'perf', float]
+
         self.perf_patterns = {
-            p_name: sn.extractsingle(r'^Time taken by GA7-UKCA in seconds is \s+(?P<'+p_name+'>\S+)',
-                                     self.stdout, p_name, float)
+            p_name: sn.extractsingle(*(self.multirun_perf_pat[p_name]))
         }
 
         self.maintainers = ['Man']
@@ -93,29 +105,39 @@ class GA7UKCAcheck(RunOnlyRegressionTest):
 
 class GA7UKCA_BM(GA7UKCAcheck):
     def __init__(self, s_x, s_y, **kwargs):
-        super().__init__('GA7_UKCA_{}c_BM'.format(s_x*s_y*2), s_x, s_y, **kwargs)
+        super().__init__('GA7_UKCA_{}c_BM'.format(s_x*s_y*2),s_x, s_y,**kwargs)
+
+        self.pre_run += self.multirun_pre_run 
+        self.post_run += self.multirun_post_run
 
         self.reference = {
             'kupe:compute': {
-                'perf_512':  (2061, None, 0.10), #TODO still need to calculate the 2*standard deviation, which PDT should not outreach
-                'perf_1024': (1219, None, 0.10)
+                'perf_512':  (2061, None, 0.10),
+                'perf_1024': (1219, None, 0.10),
+            },
+            'maui:compute': {
+                'perf_512':  (2046, None, 0.10),
+                'perf_1024': (1191, None, 0.10),
+                'perf_2048': ( 802, None, 0.10),
             },
         }
         self.tags |= {'BM'}
 
 class GA7UKCA_PDT(GA7UKCAcheck):
-    def __init__(self, s_x, s_y, **kwargs):
-        super().__init__('GA7_UKCA_{}c_PDT'.format(s_x*s_y*2), s_x, s_y, **kwargs)
+    def __init__(self, name, s_x, s_y, **kwargs):
+        super().__init__('GA7_UKCA_{0}c_PDT_{1}'.format(s_x*s_y*2, name), 
+                         s_x, s_y, **kwargs)
 
-        self.reference = {
+        self.multirun_ref = {
             'kupe:compute': {
-                'perf_1024': (580.6, None, (580.6+(2*3.1))/580.6)  # cray provided 580.6+(2*3.1)
+                'perf_1024': (580.6, None, (580.6+(2*3.1))/580.6)
             },
             'maui:compute': {
                 'perf_1024': (558, None, 1+(2*2.1)/558)
             }
         }
-        self.pre_run.append("cp SHARED_PDT SHARED")
+        self.multirun_post_run += ['cp SHARED_PDT SHARED']
+
         self.tags |= {'PDT'}
 
 
@@ -123,5 +145,5 @@ def _get_checks(**kwargs):
     return [GA7UKCA_BM(16, 32, **kwargs), 
             GA7UKCA_BM(32, 32, **kwargs),
 
-            GA7UKCA_PDT(32,32, **kwargs)
+            multirun(GA7UKCA_PDT)('', 32,32, **kwargs)
            ]

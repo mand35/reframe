@@ -2,7 +2,7 @@ import os
 
 import reframe.utility.sanity as sn
 from reframe.core.pipeline import RunOnlyRegressionTest
-
+from reframe.utility.multirun import multirun
 
 class NZCSMcheck(RunOnlyRegressionTest):
     def __init__(self, name, s_x, s_y, **kwargs):
@@ -19,16 +19,20 @@ class NZCSMcheck(RunOnlyRegressionTest):
         self.num_tasks_per_node = 20
         self.time_limit = (0, 59, 0)
 
+        out_file = 'NZCSM.out'
         prescript = os.path.join(self.sourcesdir, '../scripts/nesi_um-atmos')
-        self.pre_run = ['mkdir um_output/', "source " + prescript, 'ulimit -s unlimited']
-        self.pre_run.append("cp MPICH_RANK_ORDER.{} MPICH_RANK_ORDER".format(s_x*s_y))
-        self.pre_run.append('beg_secs=$(date +%s)')
+        self.pre_run = ['mkdir um_output/',
+                        'ulimit -s unlimited',
+                        'echo "start NZCSM" > {}'.format(out_file)]
+        self.pre_run.append('cp MPICH_RANK_ORDER.'
+                            '{} MPICH_RANK_ORDER'.format(s_x*s_y))
 
-        self.modules = ['craype-hugepages8M']
+        #self.modules = ['craype-hugepages8M']
         self.readonly_files = ['OS36_alabc', 'OS36_alabc_000', 'OS36_astart']
         
         self.use_multithreading = False
-        um_dir = os.path.join(self.sourcesdir,'../source/um_nzcsm_10.4_XC_8Mhugepage_intel_opt/build-atmos/bin')
+        um_dir = os.path.join(self.sourcesdir,'../source/',
+           'um_nzcsm_10.4_XC_8Mhugepage_intel_opt/build-atmos/bin')
         
         self.variables = {
                           'OMP_NUM_THREADS': '2',
@@ -52,7 +56,8 @@ class NZCSMcheck(RunOnlyRegressionTest):
                           'ATMOS_EXEC': '${UM_INSTALL_DIR}/um-atmos.exe',
                           'ATMOS_KEEP_MPP_STDOUT': 'true',
                           'UMDIR': self.sourcesdir,
-			  'SPECTRAL_FILE_DIR': os.path.join(self.sourcesdir,'vn10.4/ctldata/spectral/ga3_1'),
+			  'SPECTRAL_FILE_DIR': os.path.join(self.sourcesdir,
+                                'vn10.4/ctldata/spectral/ga3_1'),
 			  'VN': '10.4',
                           'DATADIR': 'um_output',
                           'DATAM': 'um_output',
@@ -77,13 +82,23 @@ class NZCSMcheck(RunOnlyRegressionTest):
                           'NPTS_Y': '"1350"',
                           'NPTS_X': '"1200"',
                           'NTSTEPS': '"1440"',
-                          'OROG_BLEND_WEIGHTS': '"1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0.9,0.8,0.7,0.6,0.5,0.4,0.3,0.2,0.1"',
+                          'OROG_BLEND_WEIGHTS': '"1,1,1,1,1,1,1,1,1,1,1,1,1,'
+                              '1,1,1,1,1,1,1,1,1,1,1,0.9,0.8,0.7,0.6,0.5,0.4,'
+                              '0.3,0.2,0.1"',
                           'POLE_LAT': '"49.5"',
                           'POLE_LON': '"171.5"',
                           'RADSTEP_DIAG': '"288"',
                           'RADSTEP_PROG': '"96"',
-                          'RHCRIT': '"0.96,0.94,0.92,0.9,0.89,0.88,0.87,0.86,0.85,0.84,0.84,0.83,0.82,0.81,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8"',
-                          'RIM_WEIGHTS': '"1,1,1,1,1,0.95,0.9,0.85,0.8,0.75,0.7,0.65,0.6,0.55,0.5,0.45,0.4,0.35,0.3,0.25,0.2,0.15,0.1,0.05,0,0,0,0,0,0"',
+                          'RHCRIT': '"0.96,0.94,0.92,0.9,0.89,0.88,0.87,0.86,'
+                              '0.85,0.84,0.84,0.83,0.82,0.81,0.8,0.8,0.8,0.8,'
+                              '0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,'
+                              '0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,'
+                              '0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,'
+                              '0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8,'
+                              '0.8,0.8,0.8,0.8,0.8,0.8,0.8,0.8"',
+                          'RIM_WEIGHTS': '"1,1,1,1,1,0.95,0.9,0.85,0.8,0.75,'
+                              '0.7,0.65,0.6,0.55,0.5,0.45,0.4,0.35,0.3,0.25,'
+                              '0.2,0.15,0.1,0.05,0,0,0,0,0,0"',
                           'TOP': '"40000"',
                           'CONTINUE': '"false"',
                           'RUN_END': '"0,0,0,12,0,0"',
@@ -104,15 +119,27 @@ class NZCSMcheck(RunOnlyRegressionTest):
 
         self.executable = "$ATMOS_EXEC"
 
-        self.post_run.append('end_secs=$(date +%s)')
-        self.post_run.append('let wallsecs=$end_secs-$beg_secs; echo "Time taken by NZCSM in seconds is " $wallsecs')
+        ref_desc = 'Time taken by NZCSM in seconds is '
+        self.multirun_pre_run = ['source ' + prescript, 
+                                 'beg_secs=$(date +%s)']
+        self.multirun_post_run = ['end_secs=$(date +%s)',
+           'let wallsecs=$end_secs-$beg_secs',
+           'echo "{}" $wallsecs'.format(ref_desc),
+           'cat {0} >> {1}'.format('pe_output/umnsa.fort6.pe{}'.format(
+                                   '0'*len(str(s_x*s_y))), out_file),
+           'rm -rf pe_output']
 
-        self.sanity_patterns = sn.all([sn.assert_found(r'^\s*END OF RUN - TIMER OUTPUT', 'pe_output/umnsa.fort6.pe0000')])
+        self.multirun_san_pat = [r'^\s*Maximum vertical velocity at '
+                                 'timestep                    360', out_file]
+        self.sanity_patterns = sn.assert_found(*self.multirun_san_pat)
 
         p_name = "perf_{}".format(self.num_tasks)
+        self.multirun_perf_pat = {}
+        self.multirun_perf_pat[p_name] = [
+           r'^{0}\s+(?P<{1}>\S+)'.format(ref_desc, p_name), 
+           self.stdout, p_name, float]
         self.perf_patterns = {
-            p_name: sn.extractsingle(r'^Time taken by NZCSM in seconds is\s+(?P<'+p_name+'>\S+)',
-                                     self.stdout, p_name, float)
+            p_name: sn.extractsingle(*(self.multirun_perf_pat[p_name]))
         }
 
         self.maintainers = ['Man']
@@ -120,7 +147,11 @@ class NZCSMcheck(RunOnlyRegressionTest):
 
 class NZCSM_BM(NZCSMcheck):
     def __init__(self, s_x, s_y, **kwargs):
-        super().__init__('nzcsm_check_{}c_BM'.format(s_x*s_y*2), s_x, s_y, **kwargs)
+        super().__init__('nzcsm_check_{}c_BM'.format(s_x*s_y*2), 
+                         s_x, s_y, **kwargs)
+
+        self.pre_run += self.multirun_pre_run
+        self.post_run += self.multirun_post_run
 
         self.reference = {
             'kupe:compute': {
@@ -128,14 +159,20 @@ class NZCSM_BM(NZCSMcheck):
                 'perf_1024': ( 878, None, 0.10),
                 'perf_1440': ( 653, None, 0.10)
             },
+            'maui:compute': {
+                'perf_512':  (1579, None, 0.10),
+                'perf_1024': ( 872, None, 0.10),
+                'perf_1440': ( 643, None, 0.10)
+            },
         }
         self.tags |= {'BM'}
 
 class NZCSM_PDT(NZCSMcheck):
-    def __init__(self, s_x, s_y, **kwargs):
-        super().__init__('nzcsm_check_{}c_PDT'.format(s_x*s_y*2), s_x, s_y, **kwargs)
+    def __init__(self, name, s_x, s_y, **kwargs):
+        super().__init__('nzcsm_check_PDT_{0}c_{1}'.format(s_x*s_y*2,name), 
+                         s_x, s_y, **kwargs)
 
-        self.reference = {
+        self.multirun_ref = {
             'kupe:compute': {
                'perf_1024': ( 446.6, None, 1.0125), ## cray provided  446.6+(2*2.8) = 452.2  
                'perf_512':  (   805, None, 1.0124), ## not measures, just estimated  805+(2*5)
@@ -156,5 +193,6 @@ def _get_checks(**kwargs):
             NZCSM_BM(36,40, **kwargs), 
 
             #NZCSM_PDT(16,32, **kwargs) 
-            NZCSM_PDT(32,32, **kwargs) ## cray provided PDT ref, but job could be too big for production
+            ## TODO cray provided PDT ref, but job could be too big for production?
+            multirun(NZCSM_PDT)('',32,32, **kwargs) 
             ]
