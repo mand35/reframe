@@ -53,11 +53,13 @@ def multirun(template_class):
               for key in temp_ref.keys():
                  references[key] = temp_ref[key]
                  for run in range(0,self.multi_rep):
-                    references[key+"_{}".format(run)] = (temp_ref[key],
+                    references[key+"_{}".format(run)] = (temp_ref[key][0],
                                                          None, None)
               self.reference = { partition.fullname: references }
    
            # run the executable multiple times also add e.g. time meassure 
+           # TODO implement a loop in the job script 
+           #   instead of repeating the commands
            if not hasattr(self, 'multirun_pre_run'):
               self.multirun_pre_run = ' '
            if not hasattr(self, 'multirun_post_run'):
