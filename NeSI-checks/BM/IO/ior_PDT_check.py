@@ -22,10 +22,11 @@ class IorCheck(RegressionTest):
 
         self.valid_prog_environs = ['PrgEnv-cray']
         #TODO get a IOR test directory
-        self.test_file = os.path.join(self.fs_mount_point, 'schoenherrm', 
-                                      '.ior', 'ior.dat')
+        self.test_file = os.path.join(self.fs_mount_point,'nesi99999/ReFrame',
+           '.ior', 'ior_{0}_{1}_{2}.dat'.format(self.current_system.name, 
+           t_size, b_size))
         os.umask(2)
-        self.time_limit = (0, 30, 0)
+        self.time_limit = (0, 55, 0)
         
         self.num_tasks = procs
         self.num_tasks_per_node = procs
