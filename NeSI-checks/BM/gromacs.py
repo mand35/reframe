@@ -14,7 +14,7 @@ class GromacsBaseCheck(RunOnlyRegressionTest):
                                        'GROMACS/input')
         self.valid_prog_environs = ['intel']
 
-        self.modules = ['cray-fftw/3.3.6.3', 'cuda90/toolkit/9.0.176', 
+        self.modules = ['cray-fftw', 'cuda91/toolkit', 
                         'intel/compiler/64/2017/17.0.6', 
                         'intel/mpi/64/2017/6.256',
                         'gcc5/5.5.0']
@@ -33,7 +33,7 @@ class GromacsBaseCheck(RunOnlyRegressionTest):
         self.num_tasks = tasks
         self.num_tasks_per_node = tasks
 
-        self.pre_run = ['module load cray-fftw/3.3.6.3 cuda90/toolkit/9.0.176',
+        self.pre_run = ['module load cray-fftw/3.3.6.5 cuda91/toolkit',
            'module load intel/compiler/64/2017/17.0.6 intel/mpi/64/2017/6.256',
            'module load gcc/6.3.0',
            'module swap gcc gcc5/5.5.0',
