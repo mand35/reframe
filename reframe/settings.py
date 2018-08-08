@@ -62,10 +62,11 @@ class ReframeSettings:
                 'descr': 'NIWA HPC2 system Maui (XC50 CS500)',
                 # Adjust to your system's hostname
                 'hostnames': ['maui01','maui02', 'maui-internallogin01'],
-#                'resourcesdir': '/home/schoenherrm/projects/reframe/kupe_tests',
-                'resourcesdir': '/scale_wlg_nobackup/filesets/nobackup/schoenherrm/180405_BM_tests/',
+                'resourcesdir': '/nesi/project/nesi99999/NeSI_ReFrame/_BM_test_cases/'
                 'modules_system': 'tmod',
-                'stagedir': '/scale_wlg_nobackup/filesets/nobackup/schoenherrm/reframe/maui',
+                'stagedir': '/nesi/nobackup/nesi99999/reframe/maui',
+                'outputdir': '/nesi/project/nesi99999/NeSI_ReFrame/output/maui',
+                'logdir': '/nesi/project/nesi99999/NeSI_ReFrame/logs/maui'
                 'partitions': {
                     'login': {
                         'scheduler': 'local',
@@ -122,9 +123,11 @@ class ReframeSettings:
                 'descr': 'NIWA HPC1 system Mahuika (CS500)',
                 # Adjust to your system's hostname
                 'hostnames': ['mahuika02'],
-                'resourcesdir': '/scale_wlg_nobackup/filesets/nobackup/schoenherrm/180405_BM_tests/',
+                'resourcesdir': '/nesi/project/nesi99999/NeSI_ReFrame/_BM_test_cases/'
                 #'modules_system': 'tmod',
-                'stagedir': '/scale_wlg_nobackup/filesets/nobackup/schoenherrm/reframe/mahuika',
+                'stagedir': '/nesi/nobackup/nesi99999/reframe/mahuika/',
+                'outputdir': '/nesi/project/nesi99999/NeSI_ReFrame/output/mahuika/',
+                'logdir': '/nesi/project/nesi99999/NeSI_ReFrame/logs/mahuika/',
                 'partitions': {
                     'login': {
                         'scheduler': 'local',
