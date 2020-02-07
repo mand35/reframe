@@ -1,10 +1,12 @@
-import os
 import collections.abc
+import re
 
 import reframe.core.debug as debug
 import reframe.core.fields as fields
 import reframe.utility as util
-from reframe.core.exceptions import ConfigError, ReframeError, ReframeFatalError
+import reframe.utility.os_ext as os_ext
+import reframe.utility.typecheck as types
+from reframe.core.exceptions import (ConfigError, ReframeFatalError)
 
 
 _settings = None
@@ -28,8 +30,8 @@ def settings():
 
 
 class SiteConfiguration:
-    """Holds the configuration of systems and environments"""
-    _modes = fields.ScopedDictField('_modes', (list, str))
+    '''Holds the configuration of systems and environments'''
+    _modes = fields.ScopedDictField('_modes', types.List[str])
 
     def __init__(self, dict_config=None):
         self._systems = {}
@@ -61,7 +63,7 @@ class SiteConfiguration:
 
         try:
             sched_descr, launcher_descr = descr.split('+')
-        except ValueError as e:
+        except ValueError:
             raise ValueError('invalid syntax for the '
                              'scheduling system: %s' % descr) from None
 
@@ -106,7 +108,7 @@ class SiteConfiguration:
             # Create an environment instance
             try:
                 config = envconfig['%s:%s:%s' % (system, partition, name)]
-            except KeyError as e:
+            except KeyError:
                 raise ConfigError(
                     "could not find a definition for `%s'" % name
                 ) from None
@@ -114,12 +116,7 @@ class SiteConfiguration:
             if not isinstance(config, collections.abc.Mapping):
                 raise TypeError("config for `%s' is not a dictionary" % name)
 
-            try:
-                envtype = m_env.__dict__[config['type']]
-                return envtype(name, **config)
-            except KeyError:
-                raise ConfigError("no type specified for environment `%s'" %
-                                  name) from None
+            return m_env.ProgEnvironment(name, **config)
 
         # Populate the systems directory
         for sys_name, config in sysconfig.items():
@@ -135,38 +132,46 @@ class SiteConfiguration:
             # The System's constructor provides also reasonable defaults, but
             # since we are going to set them anyway from the values provided by
             # the configuration, we should set default values here. The stage,
-            # output and log directories default to None, since they are
-            # going to be set dynamically by the ResourcesManager
+            # output and log directories default to None, since they are going
+            # to be set dynamically by the runtime.
             sys_prefix = config.get('prefix', '.')
             sys_stagedir = config.get('stagedir', None)
             sys_outputdir = config.get('outputdir', None)
-            sys_logdir = config.get('logdir', None)
+            sys_perflogdir = config.get('perflogdir', None)
             sys_resourcesdir = config.get('resourcesdir', '.')
             sys_modules_system = config.get('modules_system', None)
 
             # Expand variables
             if sys_prefix:
-                sys_prefix = os.path.expandvars(sys_prefix)
+                sys_prefix = os_ext.expandvars(sys_prefix)
 
             if sys_stagedir:
-                sys_stagedir = os.path.expandvars(sys_stagedir)
+                sys_stagedir = os_ext.expandvars(sys_stagedir)
 
             if sys_outputdir:
-                sys_outputdir = os.path.expandvars(sys_outputdir)
+                sys_outputdir = os_ext.expandvars(sys_outputdir)
 
-            if sys_logdir:
-                sys_logdir = os.path.expandvars(sys_logdir)
+            if sys_perflogdir:
+                sys_perflogdir = os_ext.expandvars(sys_perflogdir)
 
             if sys_resourcesdir:
-                sys_resourcesdir = os.path.expandvars(sys_resourcesdir)
+                sys_resourcesdir = os_ext.expandvars(sys_resourcesdir)
+
+            # Create the preload environment for the system
+            sys_preload_env = m_env.Environment(
+                name='__rfm_env_%s' % sys_name,
+                modules=config.get('modules', []),
+                variables=config.get('variables', {})
+            )
 
             system = System(name=sys_name,
                             descr=sys_descr,
                             hostnames=sys_hostnames,
+                            preload_env=sys_preload_env,
                             prefix=sys_prefix,
                             stagedir=sys_stagedir,
                             outputdir=sys_outputdir,
-                            logdir=sys_logdir,
+                            perflogdir=sys_perflogdir,
                             resourcesdir=sys_resourcesdir,
                             modules_system=sys_modules_system)
             for part_name, partconfig in config.get('partitions', {}).items():
@@ -181,7 +186,7 @@ class SiteConfiguration:
                 part_local_env = m_env.Environment(
                     name='__rfm_env_%s' % part_name,
                     modules=partconfig.get('modules', []),
-                    variables=partconfig.get('variables', {})
+                    variables=partconfig.get('variables', {}).items()
                 )
                 part_environs = [
                     create_env(sys_name, part_name, e)
@@ -190,14 +195,25 @@ class SiteConfiguration:
                 part_access = partconfig.get('access', [])
                 part_resources = partconfig.get('resources', {})
                 part_max_jobs = partconfig.get('max_jobs', 1)
-                system.add_partition(SystemPartition(name=part_name,
-                                                     descr=part_descr,
-                                                     scheduler=part_scheduler,
-                                                     launcher=part_launcher,
-                                                     access=part_access,
-                                                     environs=part_environs,
-                                                     resources=part_resources,
-                                                     local_env=part_local_env,
-                                                     max_jobs=part_max_jobs))
+                part = SystemPartition(name=part_name,
+                                       descr=part_descr,
+                                       scheduler=part_scheduler,
+                                       launcher=part_launcher,
+                                       access=part_access,
+                                       environs=part_environs,
+                                       resources=part_resources,
+                                       local_env=part_local_env,
+                                       max_jobs=part_max_jobs)
+
+                container_platforms = partconfig.get('container_platforms', {})
+                for cp, env_spec in container_platforms.items():
+                    cp_env = m_env.Environment(
+                        name='__rfm_env_%s' % cp,
+                        modules=env_spec.get('modules', []),
+                        variables=env_spec.get('variables', {})
+                    )
+                    part.add_container_env(cp, cp_env)
+
+                system.add_partition(part)
 
             self._systems[sys_name] = system

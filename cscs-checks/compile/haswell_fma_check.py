@@ -1,21 +1,31 @@
-import os
-
+import reframe as rfm
 import reframe.utility.sanity as sn
-from reframe.core.pipeline import CompileOnlyRegressionTest
 
 
-class HaswellFmaCheck(CompileOnlyRegressionTest):
-    def __init__(self, **kwargs):
-        super().__init__('haswell_fma_check',
-                         os.path.dirname(__file__), **kwargs)
+@rfm.required_version('>=2.14')
+@rfm.simple_test
+class HaswellFmaCheck(rfm.CompileOnlyRegressionTest):
+    def __init__(self):
+        super().__init__()
         self.descr = 'check for avx2 instructions'
         self.valid_systems = ['dom:login', 'daint:login', 'kesch:login']
         if self.current_system.name == 'kesch':
-            self.valid_prog_environs = ['PrgEnv-cray', 'PrgEnv-gnu']
+            self.valid_prog_environs = [
+                'PrgEnv-cray', 'PrgEnv-gnu', 'PrgEnv-cray-nompi',
+                'PrgEnv-gnu-nompi'
+            ]
         else:
-            self.valid_prog_environs = ['PrgEnv-cray', 'PrgEnv-gnu',
-                                        'PrgEnv-intel', 'PrgEnv-pgi']
+            self.valid_prog_environs = [
+                'PrgEnv-cray', 'PrgEnv-cray_classic', 'PrgEnv-gnu',
+                'PrgEnv-intel', 'PrgEnv-pgi'
+            ]
+            self.modules = ['craype-haswell']
+
         self.sourcesdir = 'src/haswell_fma'
+        self.build_system = 'Make'
+        self.build_system.cflags = ['-O3', '-S']
+        self.build_system.cxxflags = ['-O3', '-S']
+        self.build_system.fflags = ['-O3', '-S']
         self.sanity_patterns = sn.all([
             sn.assert_found(r'vfmadd', 'vectorize_fma_c.s'),
             sn.assert_found(r'vfmadd', 'vectorize_fma_cplusplus.s'),
@@ -23,24 +33,22 @@ class HaswellFmaCheck(CompileOnlyRegressionTest):
             sn.assert_not_found('warning|WARNING', self.stderr)
         ])
 
-        self.maintainers = ['AJ', 'VK']
-        self.tags = {'production'}
+        self.maintainers = ['AJ', 'CB']
+        self.tags = {'production', 'craype'}
 
-    def compile(self):
-        self.current_environ.cflags = '-O3 -S'
-        self.current_environ.cxxflags = '-O3 -S'
-        self.current_environ.fflags = '-O3 -S'
+    def setup(self, partition, environ, **job_opts):
         if self.current_system.name == 'kesch':
-            if self.current_environ.name == 'PrgEnv-cray':
+            if environ.name.startswith('PrgEnv-cray'):
                 # Ignore CPATH warning
-                self.current_environ.cflags += ' -h nomessage=1254'
-                self.current_environ.cxxflags += ' -h nomessage=1254'
+                self.build_system.cflags += ['-h nomessage=1254']
+                self.build_system.cxxflags += ['-h nomessage=1254']
             else:
-                self.current_environ.cflags += ' -march=native'
-                self.current_environ.cxxflags += ' -march=native'
-                self.current_environ.fflags += ' -march=native'
-        super().compile()
+                self.build_system.cflags += ['-march=native']
+                self.build_system.cxxflags += ['-march=native']
+                self.build_system.fflags += ['-march=native']
+        else:
+            if environ.name == 'PrgEnv-cray':
+                self.build_system.cflags = ['-Ofast', '-S']
+                self.build_system.cxxflags = ['-Ofast', '-S']
 
-
-def _get_checks(**kwargs):
-    return [HaswellFmaCheck(**kwargs)]
+        super().setup(partition, environ, **job_opts)

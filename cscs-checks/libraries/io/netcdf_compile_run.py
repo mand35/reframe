@@ -1,51 +1,96 @@
 import os
+
+import reframe as rfm
 import reframe.utility.sanity as sn
 
-from reframe.core.pipeline import RegressionTest
 
-
-class NetCDFTest(RegressionTest):
-    def __init__(self, lang, linkage, **kwargs):
-        super().__init__('netcdf_read_write_%s_%s' % (linkage, lang),
-                         os.path.dirname(__file__), **kwargs)
-
-        self.flags = ' -%s ' % linkage
-        self.lang_names = {
+@rfm.required_version('>=2.14')
+@rfm.parameterized_test(*([lang, linkage] for lang in ['cpp', 'c', 'f90']
+                          for linkage in ['dynamic', 'static']))
+class NetCDFTest(rfm.RegressionTest):
+    def __init__(self, lang, linkage):
+        lang_names = {
             'c': 'C',
             'cpp': 'C++',
             'f90': 'Fortran 90'
         }
+        self.lang = lang
+        self.linkage = linkage
+        self.descr = lang_names[lang] + ' NetCDF ' + linkage.capitalize()
+        self.valid_systems = ['daint:gpu', 'daint:mc',
+                              'dom:gpu', 'dom:mc', 'kesch:cn', 'tiger:gpu']
+        if self.current_system.name in ['daint', 'dom', 'tiger']:
+            self.valid_prog_environs = ['PrgEnv-cray', 'PrgEnv-gnu',
+                                        'PrgEnv-intel', 'PrgEnv-pgi']
+            self.modules = ['cray-netcdf']
+        elif self.current_system.name == 'kesch':
+            self.exclusive_access = True
+            if linkage == 'dynamic':
+                self.valid_prog_environs = ['PrgEnv-pgi-nompi']
 
-        self.descr = self.lang_names[lang] + ' NetCDF ' + linkage.capitalize()
+            if lang != 'f90':
+                self.valid_prog_environs += ['PrgEnv-cray-nompi']
+
         self.sourcesdir = os.path.join(self.current_system.resourcesdir,
                                        'netcdf')
+        self.build_system = 'SingleSource'
         self.sourcepath = 'netcdf_read_write.' + lang
-        self.valid_systems = ['daint:gpu', 'daint:mc',
-                              'dom:gpu', 'dom:mc']
-        self.valid_prog_environs = ['PrgEnv-cray', 'PrgEnv-gnu',
-                                    'PrgEnv-intel', 'PrgEnv-pgi']
-
-        self.modules = ['cray-netcdf']
-        self.sanity_patterns = sn.assert_found(r'SUCCESS', self.stdout)
-
         self.num_tasks = 1
         self.num_tasks_per_node = 1
+        self.sanity_patterns = sn.assert_found(r'SUCCESS', self.stdout)
+        self.maintainers = ['AJ', 'SO']
+        self.tags = {'production', 'craype', 'external-resources'}
 
-        self.maintainers = ['AJ', 'VK']
-        self.tags = {'production'}
+    @rfm.run_before('compile')
+    def setflags(self):
+        if self.current_system.name == 'kesch':
+            if self.current_environ.name == 'PrgEnv-cray-nompi':
+                self.modules = ['netcdf/4.4.1.1-gmvolf-17.02',
+                                'netcdf-c++/4.3.0-gmvolf-17.02',
+                                'netcdf-fortran/4.4.4-gmvolf-17.02']
+                self.build_system.cppflags = [
+                    '-I$EBROOTNETCDF/include',
+                    '-I$EBROOTNETCDFMINCPLUSPLUS/include',
+                    '-I$EBROOTNETCDFMINFORTRAN/include'
+                ]
+                self.build_system.ldflags = [
+                    '-L$EBROOTNETCDF/lib',
+                    '-L$EBROOTNETCDFMINCPLUSPLUS/lib',
+                    '-L$EBROOTNETCDFMINFORTRAN/lib',
+                    '-L$EBROOTNETCDF/lib64',
+                    '-L$EBROOTNETCDFMINCPLUSPLUS/lib64',
+                    '-L$EBROOTNETCDFMINFORTRAN/lib64',
+                    '-lnetcdf', '-lnetcdf_c++4', '-lnetcdff'
+                ]
+            elif self.current_environ.name == 'PrgEnv-pgi-nompi':
+                self.modules = ['netcdf/4.6.1-pgi-18.5-gcc-5.4.0-2.26',
+                                'netcdf-c++/4.3.0-pgi-18.5-gcc-5.4.0-2.26',
+                                'netcdf-fortran/4.4.4-pgi-18.5-gcc-5.4.0-2.26']
+                self.build_system.ldflags = [
+                    '-B' + self.linkage,
+                    '-L$EBROOTNETCDF/lib',
+                    '-L$EBROOTNETCDFMINCPLUSPLUS/lib',
+                    '-L$EBROOTNETCDFMINFORTRAN/lib',
+                    '-L$EBROOTNETCDF/lib64',
+                    '-L$EBROOTNETCDFMINCPLUSPLUS/lib64',
+                    '-L$EBROOTNETCDFMINFORTRAN/lib64',
+                    '-lnetcdf', '-lnetcdf_c++4', '-lnetcdff'
+                ]
+                self.build_system.fflags = [
+                    '-I$EBROOTNETCDF/include',
+                    '-I$EBROOTNETCDFMINCPLUSPLUS/include',
+                    '-I$EBROOTNETCDFMINFORTRAN/include'
+                ]
+        else:
+            self.build_system.ldflags = ['-%s' % self.linkage]
 
-    def compile(self):
-        self.current_environ.cflags   = self.flags
-        self.current_environ.cxxflags = self.flags
-        self.current_environ.fflags   = self.flags
+    @rfm.run_before('compile')
+    def cray_linker_workaround(self):
+        # FIXME: static compilation yields a link error in case of
+        # PrgEnv-cray(Cray Bug #255707)
+        if not (self.linkage == 'static' and
+                self.current_system.name == 'dom' and
+                self.current_environ.name == 'PrgEnv-cray'):
+            return
 
-        super().compile()
-
-
-def _get_checks(**kwargs):
-    ret = []
-    for lang in ['cpp', 'c', 'f90']:
-        for linkage in ['dynamic', 'static']:
-            ret.append(NetCDFTest(lang, linkage, **kwargs))
-
-    return ret
+        self.variables = {'ALT_LINKER': '/usr/bin/ld'}

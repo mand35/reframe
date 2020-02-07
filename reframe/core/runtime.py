@@ -5,7 +5,6 @@
 import os
 import functools
 import re
-import shutil
 import socket
 from datetime import datetime
 
@@ -21,7 +20,7 @@ from reframe.core.modules import ModulesSystem
 
 
 class HostSystem:
-    """The host system of the framework.
+    '''The host system of the framework.
 
     The host system is a representation of the system that the framework
     currently runs on.If the framework is properly configured, the host
@@ -37,7 +36,7 @@ class HostSystem:
 
     .. note::
        .. versionadded:: 2.13
-    """
+    '''
 
     def __init__(self, system, partname=None):
         self._system = system
@@ -49,10 +48,10 @@ class HostSystem:
 
     @property
     def partitions(self):
-        """The partitions of this system.
+        '''The partitions of this system.
 
         :type: :class:`list[reframe.core.systems.SystemPartition]`.
-        """
+        '''
 
         if not self._partname:
             return self._system.partitions
@@ -60,10 +59,10 @@ class HostSystem:
         return [p for p in self._system.partitions if p.name == self._partname]
 
     def partition(self, name):
-        """Return the system partition ``name``.
+        '''Return the system partition ``name``.
 
         :type: :class:`reframe.core.systems.SystemPartition`.
-        """
+        '''
         for p in self.partitions:
             if p.name == name:
                 return p
@@ -71,18 +70,27 @@ class HostSystem:
         return None
 
     def __str__(self):
-        return str(self._system)
+        partitions = '\n'.join(re.sub('(?m)^', 6*' ', '- ' + str(p))
+                               for p in self.partitions)
+        lines = [
+            '%s [%s]:' % (self._name, self._descr),
+            '    hostnames: ' + ', '.join(self._hostnames),
+            '    modules_system: ' + str(self._modules_system),
+            '    resourcesdir: ' + self._resourcesdir,
+            '    partitions:\n' + partitions,
+        ]
+        return '\n'.join(lines)
 
     def __repr__(self):
         return 'HostSystem(%r, %r)' % (self._system, self._partname)
 
 
 class HostResources:
-    """Resources associated with ReFrame execution on the current host.
+    '''Resources associated with ReFrame execution on the current host.
 
     .. note::
        .. versionadded:: 2.13
-    """
+    '''
 
     #: The prefix directory of ReFrame execution.
     #: This is always an absolute path.
@@ -93,24 +101,39 @@ class HostResources:
     #:    Users may not set this field.
     #:
     prefix = fields.AbsolutePathField('prefix')
-    outputdir = fields.AbsolutePathField('outputdir', allow_none=True)
-    stagedir  = fields.AbsolutePathField('stagedir', allow_none=True)
+    outputdir = fields.AbsolutePathField('outputdir', type(None))
+    stagedir = fields.AbsolutePathField('stagedir', type(None))
+    perflogdir = fields.AbsolutePathField('perflogdir', type(None))
 
     def __init__(self, prefix=None, stagedir=None,
-                 outputdir=None, timefmt=None):
+                 outputdir=None, perflogdir=None, timefmt=None):
         self.prefix = prefix or '.'
-        self.stagedir  = stagedir
+        self.stagedir = stagedir
         self.outputdir = outputdir
-        self._timestamp = datetime.now()
+        self.perflogdir = perflogdir
         self.timefmt = timefmt
+        self._timestamp = datetime.now()
 
     def _makedir(self, *dirs, wipeout=False):
         ret = os.path.join(*dirs)
         if wipeout:
-            shutil.rmtree(ret, True)
+            os_ext.rmtree(ret, ignore_errors=True)
 
         os.makedirs(ret, exist_ok=True)
         return ret
+
+    def _format_dirs(self, *dirs):
+        try:
+            last = dirs[-1]
+        except IndexError:
+            return dirs
+
+        current_run = runtime().current_run
+        if current_run == 0:
+            return dirs
+
+        last += '_retry%s' % current_run
+        return (*dirs[:-1], last)
 
     @property
     def timestamp(self):
@@ -118,7 +141,7 @@ class HostResources:
 
     @property
     def output_prefix(self):
-        """The output prefix directory of ReFrame."""
+        '''The output prefix directory of ReFrame.'''
         if self.outputdir is None:
             return os.path.join(self.prefix, 'output', self.timestamp)
         else:
@@ -126,32 +149,44 @@ class HostResources:
 
     @property
     def stage_prefix(self):
-        """The stage prefix directory of ReFrame."""
+        '''The stage prefix directory of ReFrame.'''
         if self.stagedir is None:
             return os.path.join(self.prefix, 'stage', self.timestamp)
         else:
             return os.path.join(self.stagedir, self.timestamp)
 
+    @property
+    def perflog_prefix(self):
+        if self.perflogdir is None:
+            return os.path.join(self.prefix, 'perflogs')
+        else:
+            return self.perflogdir
+
     def make_stagedir(self, *dirs, wipeout=True):
-        return self._makedir(self.stage_prefix, *dirs, wipeout=wipeout)
+        return self._makedir(self.stage_prefix,
+                             *self._format_dirs(*dirs), wipeout=wipeout)
 
     def make_outputdir(self, *dirs, wipeout=True):
-        return self._makedir(self.output_prefix, *dirs, wipeout=wipeout)
+        return self._makedir(self.output_prefix,
+                             *self._format_dirs(*dirs), wipeout=wipeout)
 
 
 class RuntimeContext:
-    """The runtime context of the framework.
+    '''The runtime context of the framework.
 
     This class essentially groups the current host system and the associated
     resources of the framework on the current system.
+    It also encapsulates other runtime parameters that are relevant to the
+    framework's execution.
 
     There is a single instance of this class globally in the framework.
 
     .. note::
        .. versionadded:: 2.13
-    """
 
-    def __init__(self, dict_config, sysdescr=None):
+    '''
+
+    def __init__(self, dict_config, sysdescr=None, **options):
         self._site_config = config.SiteConfiguration(dict_config)
         if sysdescr is not None:
             sysname, _, partname = sysdescr.partition(':')
@@ -166,12 +201,14 @@ class RuntimeContext:
 
         self._resources = HostResources(
             self._system.prefix, self._system.stagedir,
-            self._system.outputdir, self._system.logdir)
+            self._system.outputdir, self._system.perflogdir)
         self._modules_system = ModulesSystem.create(
             self._system.modules_system)
+        self._current_run = 0
+        self._non_default_craype = options.get('non_default_craype', False)
 
     def _autodetect_system(self):
-        """Auto-detect system."""
+        '''Auto-detect system.'''
 
         # Try to detect directly the cluster name from /etc/xthostname (Cray
         # specific)
@@ -196,50 +233,81 @@ class RuntimeContext:
         except KeyError:
             raise ConfigError('unknown execution mode: %s' % name) from None
 
+    def next_run(self):
+        self._current_run += 1
+
+    @property
+    def current_run(self):
+        return self._current_run
+
     @property
     def system(self):
-        """The current host system.
+        '''The current host system.
 
         :type: :class:`reframe.core.runtime.HostSystem`
-        """
+        '''
         return self._system
 
     @property
     def resources(self):
-        """The framework resources.
+        '''The framework resources.
 
         :type: :class:`reframe.core.runtime.HostResources`
-        """
+        '''
         return self._resources
 
     @property
     def modules_system(self):
-        """The modules system used by the current host system.
+        '''The modules system used by the current host system.
 
         :type: :class:`reframe.core.modules.ModulesSystem`.
-        """
+        '''
         return self._modules_system
+
+    @property
+    def non_default_craype(self):
+        '''True if a non-default Cray PE is tested.
+
+        This will cause ReFrame to set the ``LD_LIBRARY_PATH`` as follows after
+        all modules have been loaded:
+
+        .. code:: shell
+
+            export LD_LIBRARY_PATH=$CRAY_LD_LIBRARY_PATH:$LD_LIBRARY_PATH
+
+
+        This property is set through the ``--non-default-craype`` command-line
+        option.
+
+        :type: :class:`bool` (default: :class:`False`)
+
+        '''
+        return self._non_default_craype
+
+    def show_config(self):
+        '''Return a textual representation of the current runtime.'''
+        return str(self._system)
 
 
 # Global resources for the current host
 _runtime_context = None
 
 
-def init_runtime(dict_config, sysname=None):
+def init_runtime(dict_config, sysname=None, **options):
     global _runtime_context
 
     if _runtime_context is None:
-        _runtime_context = RuntimeContext(dict_config, sysname)
+        _runtime_context = RuntimeContext(dict_config, sysname, **options)
 
 
 def runtime():
-    """Retrieve the framework's runtime context.
+    '''Retrieve the framework's runtime context.
 
     :type: :class:`reframe.core.runtime.RuntimeContext`
 
     .. note::
        .. versionadded:: 2.13
-    """
+    '''
     if _runtime_context is None:
         raise ReframeFatalError('no runtime context is configured')
 
@@ -249,7 +317,7 @@ def runtime():
 # The following utilities are useful only for the unit tests
 
 class temp_runtime:
-    """Context manager to temporarily switch to another runtime."""
+    '''Context manager to temporarily switch to another runtime.'''
 
     def __init__(self, dict_config, sysname=None):
         global _runtime_context
@@ -268,7 +336,8 @@ class temp_runtime:
 
 
 def switch_runtime(dict_config, sysname=None):
-    """Function decorator for temporarily changing the runtime for a function."""
+    '''Function decorator for temporarily changing the runtime for a
+    function.'''
     def _runtime_deco(fn):
         @functools.wraps(fn)
         def _fn(*args, **kwargs):
@@ -280,3 +349,17 @@ def switch_runtime(dict_config, sysname=None):
         return _fn
 
     return _runtime_deco
+
+
+class module_use:
+    '''Context manager for temporarily modifying the module path'''
+
+    def __init__(self, *paths):
+        self._paths = paths
+
+    def __enter__(self):
+        runtime().modules_system.searchpath_add(*self._paths)
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        runtime().modules_system.searchpath_remove(*self._paths)

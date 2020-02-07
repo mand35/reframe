@@ -1,210 +1,167 @@
 import collections
-import errno
-import itertools
 import os
 
 import reframe.core.fields as fields
+import reframe.utility as util
 import reframe.utility.os_ext as os_ext
-from reframe.core.exceptions import EnvironError, SpawnedProcessError
+import reframe.utility.typecheck as typ
 from reframe.core.runtime import runtime
 
 
 class Environment:
-    """This class abstracts away an environment to run regression tests.
+    '''This class abstracts away an environment to run regression tests.
 
     It is simply a collection of modules to be loaded and environment variables
     to be set when this environment is loaded by the framework.
-    Users may not create or modify directly environments.
-    """
-    name = fields.StringPatternField('name', r'(\w|-)+')
-    modules = fields.TypedListField('modules', str)
-    variables = fields.TypedDictField('variables', str, str)
+    '''
+    name = fields.TypedField('name', typ.Str[r'(\w|-)+'])
+    modules = fields.TypedField('modules', typ.List[str])
+    variables = fields.TypedField('variables', typ.Dict[str, str])
 
-    def __init__(self, name, modules=[], variables={}, **kwargs):
+    def __init__(self, name, modules=[], variables=[]):
         self._name = name
         self._modules = list(modules)
-        self._variables = collections.OrderedDict()
-        self._variables.update(variables)
-        self._loaded = False
-        self._saved_variables = {}
-        self._conflicted = []
-        self._preloaded = set()
-        self._load_stmts = []
+        self._variables = collections.OrderedDict(variables)
 
     @property
     def name(self):
-        """The name of this environment.
+        '''The name of this environment.
 
         :type: :class:`str`
-        """
+        '''
         return self._name
 
     @property
     def modules(self):
-        """The modules associated with this environment.
+        '''The modules associated with this environment.
 
         :type: :class:`list` of :class:`str`
-        """
-        return self._modules
+        '''
+        return util.SequenceView(self._modules)
 
     @property
     def variables(self):
-        """The environment variables associated with this environment.
+        '''The environment variables associated with this environment.
 
         :type: dictionary of :class:`str` keys/values.
-        """
-        return self._variables
+        '''
+        return util.MappingView(self._variables)
 
     @property
     def is_loaded(self):
-        """:class:`True` if this environment is loaded,
+        ''':class:`True` if this environment is loaded,
         :class:`False` otherwise.
-        """
-        return self._loaded
+        '''
+        is_module_loaded = runtime().modules_system.is_module_loaded
+        return (all(map(is_module_loaded, self._modules)) and
+                all(os.environ.get(k, None) == os_ext.expandvars(v)
+                    for k, v in self._variables.items()))
 
-    # Add module to the list of modules to be loaded.
-    def add_module(self, name):
-        self._modules.append(name)
-
-    # Set environment variable to name.
-    #
-    # If variable exists, its value will be saved internally and restored
-    # during unloading.
-    def set_variable(self, name, value):
-        self._variables[name] = value
-
-    def load(self):
-        # conflicted module list must be filled at the time of load
-        rt = runtime()
-        for m in self._modules:
-            if rt.modules_system.is_module_loaded(m):
-                self._preloaded.add(m)
-
-            conflicted = rt.modules_system.load_module(m, force=True)
-            for c in conflicted:
-                stmts = rt.modules_system.emit_unload_commands(c)
-                self._load_stmts += stmts
-
-            self._load_stmts += rt.modules_system.emit_load_commands(m)
-            self._conflicted += conflicted
-
-        for k, v in self._variables.items():
-            if k in os.environ:
-                self._saved_variables[k] = os.environ[k]
-
-            os.environ[k] = os.path.expandvars(v)
-
-        self._loaded = True
-
-    def unload(self):
-        if not self._loaded:
-            return
-
-        for k, v in self._variables.items():
-            if k in self._saved_variables:
-                os.environ[k] = self._saved_variables[k]
-            elif k in os.environ:
-                del os.environ[k]
-
-        # Unload modules in reverse order
-        for m in reversed(self._modules):
-            if m not in self._preloaded:
-                runtime().modules_system.unload_module(m)
-
-        # Reload the conflicted packages, previously removed
-        for m in self._conflicted:
-            runtime().modules_system.load_module(m)
-
-        self._loaded = False
-
-    def emit_load_commands(self):
-        rt = runtime()
-        if self.is_loaded:
-            ret = self._load_stmts
-        else:
-            ret = list(
-                itertools.chain(*(rt.modules_system.emit_load_commands(m)
-                                  for m in self.modules))
-            )
-
-        for k, v in self._variables.items():
-            ret.append('export %s=%s' % (k, v))
-
-        return ret
-
-    def emit_unload_commands(self):
-        rt = runtime()
-        ret = []
-        for var in self._variables.keys():
-            ret.append('unset %s' % var)
-
-        ret += list(
-            itertools.chain(*(rt.modules_system.emit_unload_commands(m)
-                              for m in reversed(self._modules)))
-        )
-        ret += list(
-            itertools.chain(*(rt.modules_system.emit_load_commands(m)
-                              for m in self._conflicted))
-        )
-        return ret
+    def details(self):
+        '''Return a detailed description of this environment.'''
+        variables = '\n'.join(' '*8 + '- %s=%s' % (k, v)
+                              for k, v in self.variables.items())
+        lines = [
+            self._name + ':',
+            '    modules: ' + ', '.join(self.modules),
+            '    variables:' + ('\n' if variables else '') + variables
+        ]
+        return '\n'.join(lines)
 
     def __eq__(self, other):
         if not isinstance(other, type(self)):
             return NotImplemented
 
-        return (self._name == other._name and
-                set(self._modules) == set(other._modules) and
-                self._variables == other._variables)
+        return (self.name == other.name and
+                set(self.modules) == set(other.modules) and
+                self.variables == other.variables)
 
     def __str__(self):
+        return self.name
+
+    def __repr__(self):
         ret = "{0}(name='{1}', modules={2}, variables={3})"
         return ret.format(type(self).__name__, self.name,
                           self.modules, self.variables)
 
 
-def swap_environments(src, dst):
-    src.unload()
-    dst.load()
-
-
-class EnvironmentSnapshot(Environment):
+class _EnvironmentSnapshot(Environment):
     def __init__(self, name='env_snapshot'):
-        self._name = name
-        self._modules = runtime().modules_system.loaded_modules()
-        self._variables = dict(os.environ)
-        self._conflicted = []
+        super().__init__(name,
+                         runtime().modules_system.loaded_modules(),
+                         os.environ.items())
 
-    def add_module(self, name):
-        raise EnvironError('environment snapshot is read-only')
-
-    def set_variable(self, name, value):
-        raise EnvironError('environment snapshot is read-only')
-
-    def load(self):
+    def restore(self):
+        '''Restore this environment snapshot.'''
         os.environ.clear()
         os.environ.update(self._variables)
-        self._loaded = True
 
-    def unload(self):
-        raise EnvironError('cannot unload an environment snapshot')
+    def __eq__(self, other):
+        if not isinstance(other, Environment):
+            return NotImplemented
+
+        # Order of variables is not important when comparing snapshots
+        for k, v in self.variables.items():
+            if other.variables[k] != v:
+                return False
+
+        return (self.name == other.name and
+                set(self.modules) == set(other.modules))
 
 
-class save_environment:
-    """A context manager for saving and restoring the current environment."""
+def snapshot():
+    '''Create an environment snapshot'''
+    return _EnvironmentSnapshot()
 
-    def __init__(self):
-        self.environ_save = EnvironmentSnapshot()
+
+def load(*environs):
+    '''Load environments in the current Python context.
+
+    Returns a tuple containing a snapshot of the environment at entry to this
+    function and a list of shell commands required to load ``environs``.
+    '''
+    env_snapshot = snapshot()
+    commands = []
+    rt = runtime()
+    for env in environs:
+        for m in env.modules:
+            conflicted = rt.modules_system.load_module(m, force=True)
+            for c in conflicted:
+                commands += rt.modules_system.emit_unload_commands(c)
+
+            commands += rt.modules_system.emit_load_commands(m)
+
+        for k, v in env.variables.items():
+            os.environ[k] = os_ext.expandvars(v)
+            commands.append('export %s=%s' % (k, v))
+
+    return env_snapshot, commands
+
+
+def emit_load_commands(*environs):
+    env_snapshot, commands = load(*environs)
+    env_snapshot.restore()
+    return commands
+
+
+class temp_environment:
+    '''Context manager to temporarily change the environment.'''
+
+    def __init__(self, modules=[], variables=[]):
+        self._modules = modules
+        self._variables = variables
 
     def __enter__(self):
-        return self.environ_save
+        new_env = Environment('_rfm_temp_env', self._modules, self._variables)
+        self._environ_save, _ = load(new_env)
+        return new_env
 
     def __exit__(self, exc_type, exc_value, traceback):
-        # Restore the environment and propagate any exception thrown
-        self.environ_save.load()
+        self._environ_save.restore()
 
 
 class ProgEnvironment(Environment):
-    """A class representing a programming environment.
+    '''A class representing a programming environment.
 
     This type of environment adds also attributes for setting the compiler and
     compilation flags.
@@ -217,105 +174,16 @@ class ProgEnvironment(Environment):
     If you want to disable completely the propagation of the compilation flags
     to the ``make`` invocation, even if they are set, you should set the
     :attr:`propagate` attribute to :class:`False`.
-    """
+    '''
 
-    #: The C compiler of this programming environment.
-    #:
-    #: :type: :class:`str`
-    cc = fields.DeprecatedField(fields.StringField('cc'),
-                                'setting this field is deprecated; '
-                                'please set it through a build system',
-                                fields.DeprecatedField.OP_SET)
-    _cc = fields.StringField('cc')
-
-    #: The C++ compiler of this programming environment.
-    #:
-    #: :type: :class:`str` or :class:`None`
-    cxx = fields.DeprecatedField(fields.StringField('cxx', allow_none=True),
-                                 'setting this field is deprecated; '
-                                 'please set it through a build system',
-                                 fields.DeprecatedField.OP_SET)
-    _cxx = fields.StringField('cxx', allow_none=True)
-
-    #: The Fortran compiler of this programming environment.
-    #:
-    #: :type: :class:`str` or :class:`None`
-    ftn = fields.DeprecatedField(fields.StringField('ftn', allow_none=True),
-                                 'setting this field is deprecated; '
-                                 'please set it through a build system',
-                                 fields.DeprecatedField.OP_SET)
-    _ftn = fields.StringField('ftn', allow_none=True)
-
-    #: The preprocessor flags of this programming environment.
-    #:
-    #: :type: :class:`str` or :class:`None`
-    cppflags = fields.DeprecatedField(
-        fields.StringField('cppflags', allow_none=True),
-        'setting this field is deprecated; '
-        'please set it through a build system',
-        fields.DeprecatedField.OP_SET)
-    _cppflags = fields.StringField('cppflags', allow_none=True)
-
-    #: The C compiler flags of this programming environment.
-    #:
-    #: :type: :class:`str` or :class:`None`
-    cflags = fields.DeprecatedField(
-        fields.StringField('cflags', allow_none=True),
-        'setting this field is deprecated; '
-        'please set it through a build system',
-        fields.DeprecatedField.OP_SET)
-    _cflags = fields.StringField('cflags', allow_none=True)
-
-    #: The C++ compiler flags of this programming environment.
-    #:
-    #: :type: :class:`str` or :class:`None`
-    cxxflags = fields.DeprecatedField(
-        fields.StringField('cxxflags', allow_none=True),
-        'setting this field is deprecated; '
-        'please set it through a build system',
-        fields.DeprecatedField.OP_SET)
-    _cxxflags = fields.StringField('cxxflags', allow_none=True)
-
-    #: The Fortran compiler flags of this programming environment.
-    #:
-    #: :type: :class:`str` or :class:`None`
-    fflags = fields.DeprecatedField(
-        fields.StringField('fflags', allow_none=True),
-        'setting this field is deprecated; '
-        'please set it through a build system',
-        fields.DeprecatedField.OP_SET)
-    _fflags = fields.StringField('fflags', allow_none=True)
-
-    #: The linker flags of this programming environment.
-    #:
-    #: :type: :class:`str` or :class:`None`
-    ldflags = fields.DeprecatedField(
-        fields.StringField('ldflags', allow_none=True),
-        'setting this field is deprecated; '
-        'please set it through a build system',
-        fields.DeprecatedField.OP_SET)
-    _ldflags = fields.StringField('ldflags', allow_none=True)
-
-    #: The include search path of this programming environment.
-    #:
-    #: :type: :class:`list` of :class:`str`
-    #: :default: ``[]``
-    include_search_path = fields.DeprecatedField(
-        fields.TypedListField('include_search_path', str),
-        'setting this field is deprecated; '
-        'please set it through a build system',
-        fields.DeprecatedField.OP_SET)
-    _include_search_path = fields.TypedListField('include_search_path', str)
-
-    #: Propagate the compilation flags to the ``make`` invocation.
-    #:
-    #: :type: :class:`bool`
-    #: :default: :class:`True`
-    propagate = fields.DeprecatedField(fields.BooleanField('propagate'),
-                                       'setting this field is deprecated; '
-                                       'please set it through a build system',
-                                       fields.DeprecatedField.OP_SET)
-    _propagate = fields.BooleanField('propagate')
+    _cc = fields.TypedField('_cc', str)
+    _cxx = fields.TypedField('_cxx', str)
+    _ftn = fields.TypedField('_ftn', str)
+    _cppflags = fields.TypedField('_cppflags', typ.List[str], type(None))
+    _cflags = fields.TypedField('_cflags', typ.List[str], type(None))
+    _cxxflags = fields.TypedField('_cxxflags', typ.List[str], type(None))
+    _fflags = fields.TypedField('_fflags', typ.List[str], type(None))
+    _ldflags = fields.TypedField('_ldflags', typ.List[str], type(None))
 
     def __init__(self,
                  name,
@@ -341,9 +209,95 @@ class ProgEnvironment(Environment):
         self._cxxflags = cxxflags
         self._fflags = fflags
         self._ldflags = ldflags
-        self._include_search_path = []
-        self._propagate = True
+
+    @property
+    def cc(self):
+        '''The C compiler of this programming environment.
+
+        :type: :class:`str`
+        '''
+        return self._cc
+
+    @property
+    def cxx(self):
+        '''The C++ compiler of this programming environment.
+
+        :type: :class:`str` or :class:`None`
+        '''
+        return self._cxx
+
+    @property
+    def ftn(self):
+        '''The Fortran compiler of this programming environment.
+
+        :type: :class:`str` or :class:`None`
+        '''
+        return self._ftn
+
+    @property
+    def cppflags(self):
+        '''The preprocessor flags of this programming environment.
+
+        :type: :class:`str` or :class:`None`
+        '''
+        return self._cppflags
+
+    @property
+    def cflags(self):
+        '''The C compiler flags of this programming environment.
+
+        :type: :class:`str` or :class:`None`
+        '''
+        return self._cflags
+
+    @property
+    def cxxflags(self):
+        '''The C++ compiler flags of this programming environment.
+
+        :type: :class:`str` or :class:`None`
+        '''
+        return self._cxxflags
+
+    @property
+    def fflags(self):
+        '''The Fortran compiler flags of this programming environment.
+
+        :type: :class:`str` or :class:`None`
+        '''
+        return self._fflags
+
+    @property
+    def ldflags(self):
+        '''The linker flags of this programming environment.
+
+        :type: :class:`str` or :class:`None`
+        '''
+        return self._ldflags
 
     @property
     def nvcc(self):
         return self._nvcc
+
+    def details(self):
+        def format_flags(flags):
+            if flags is None:
+                return '<None>'
+            elif len(flags) == 0:
+                return "''"
+            else:
+                return ' '.join(flags)
+
+        base_details = super().details()
+        extra_details = [
+            '    CC: %s' % self.cc,
+            '    CXX: %s' % self.cxx,
+            '    FTN: %s' % self.ftn,
+            '    NVCC: %s' % self.nvcc,
+            '    CFLAGS: %s' % format_flags(self.cflags),
+            '    CXXFLAGS: %s' % format_flags(self.cxxflags),
+            '    FFLAGS: %s' % format_flags(self.fflags),
+            '    CPPFLAGS: %s' % format_flags(self.cppflags),
+            '    LDFLAGS: %s' % format_flags(self.ldflags)
+        ]
+
+        return '\n'.join([base_details, '\n'.join(extra_details)])

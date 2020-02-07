@@ -3,8 +3,6 @@ import functools
 import sys
 import re
 
-from itertools import takewhile
-
 
 @functools.total_ordering
 class Version:
@@ -67,20 +65,21 @@ class Version:
         return base + '-dev%s' % self._dev_number
 
 
-class _ValidatorImpl:
-    """Abstract base class for the validation of version ranges."""
+class _ValidatorImpl(abc.ABC):
+    '''Abstract base class for the validation of version ranges.'''
     @abc.abstractmethod
     def validate(version):
         pass
 
 
 class _IntervalValidator(_ValidatorImpl):
-    """Class for the validation of version intervals.
+    '''Class for the validation of version intervals.
 
     This class takes an interval of versions "v1..v2" and its method
     ``validate`` returns ``True`` if a given version string is inside
     the interval including the endpoints.
-    """
+    '''
+
     def __init__(self, condition):
         try:
             min_version_str, max_version_str = condition.split('..')
@@ -102,12 +101,13 @@ class _IntervalValidator(_ValidatorImpl):
 
 
 class _RelationalValidator(_ValidatorImpl):
-    """Class for the validation of Boolean relations of versions.
+    '''Class for the validation of Boolean relations of versions.
 
     This class takes a Boolean relation of versions with the form
     ``<bool_operator><version>``, and its method ``validate`` returns
     ``True`` if a given version string satisfies the relation.
-    """
+    '''
+
     def __init__(self, condition):
         self._op_actions = {
             ">":  lambda x, y: x > y,
@@ -137,7 +137,7 @@ class _RelationalValidator(_ValidatorImpl):
 
 
 class VersionValidator:
-    """Class factory for the validation of version ranges."""
+    '''Class factory for the validation of version ranges.'''
     def __new__(cls, condition):
         if '..' in condition:
             return _IntervalValidator(condition)

@@ -1,17 +1,21 @@
 import os
 
+import reframe as rfm
 import reframe.utility.sanity as sn
-from reframe.core.pipeline import RegressionTest
 
 
-class RRTMGPTest(RegressionTest):
-    def __init__(self, **kwargs):
-        super().__init__('rrtmgp_check',
-                         os.path.dirname(__file__), **kwargs)
+@rfm.simple_test
+class RRTMGPTest(rfm.RegressionTest):
+    '''This is an outdated PoC test for ICON-RRTMGP.'''
+
+    def __init__(self):
+        super().__init__()
         self.valid_systems = ['dom:gpu', 'daint:gpu']
         self.valid_prog_environs = ['PrgEnv-pgi']
         self.sourcesdir = os.path.join(self.current_system.resourcesdir,
                                        'RRTMGP')
+        self.tags = {'external-resources'}
+        self.prebuild_cmd = ['cp build/Makefile.conf.dom build/Makefile.conf']
         self.executable = 'python'
         self.executable_opts = [
             'util/scripts/run_tests.py',
@@ -20,7 +24,7 @@ class RRTMGPTest(RegressionTest):
         ]
         self.pre_run = [
             'pwd',
-            'module load netcdf-python/1.2.9-CrayGNU-17.08-python-2',
+            'module load netcdf-python/1.4.1-CrayGNU-19.06-python2',
             'cd test'
         ]
         self.modules = ['craype-accel-nvidia60', 'cray-netcdf']
@@ -34,9 +38,4 @@ class RRTMGPTest(RegressionTest):
                 [sn.assert_gt(sn.count(values), 0, msg='regex not matched')],
                 sn.map(lambda x: sn.assert_lt(x, 1e-5), values))
         )
-        self.tags = {'production'}
-        self.maintainers = ['WS', 'VK']
-
-
-def _get_checks(**kwargs):
-    return [RRTMGPTest(**kwargs)]
+        self.maintainers = ['WS', 'RS']

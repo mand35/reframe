@@ -32,6 +32,7 @@ Listing of the regression tests
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To retrieve a listing of the selected checks, you must specify the ``-l`` or ``--list`` options.
+This will provide a list with a brief description for each test containing only its name and the path to the file where it is defined.
 An example listing of checks is the following that lists all the tests found under the ``tutorial/`` folder:
 
 .. code-block:: bash
@@ -43,7 +44,7 @@ The output looks like:
 .. code-block:: none
 
    Command line: ./bin/reframe -c tutorial/ -l
-   Reframe version: 2.13-dev0
+   Reframe version: 2.15-dev1
    Launched by user: USER
    Launched on host: daint103
    Reframe paths
@@ -56,50 +57,163 @@ The output looks like:
    List of matched checks
    ======================
      * Example5Test (found in /path/to/reframe/tutorial/example5.py)
-           descr: Matrix-vector multiplication example with CUDA
-           tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
      * Example1Test (found in /path/to/reframe/tutorial/example1.py)
-           descr: Simple matrix-vector multiplication example
-           tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
      * Example4Test (found in /path/to/reframe/tutorial/example4.py)
-           descr: Matrix-vector multiplication example with OpenACC
-           tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
      * SerialTest (found in /path/to/reframe/tutorial/example8.py)
-           descr: Serial matrix-vector multiplication
-           tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
      * OpenMPTest (found in /path/to/reframe/tutorial/example8.py)
-           descr: OpenMP matrix-vector multiplication
-           tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
      * MPITest (found in /path/to/reframe/tutorial/example8.py)
-           descr: MPI matrix-vector multiplication
-           tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
      * OpenACCTest (found in /path/to/reframe/tutorial/example8.py)
-           descr: OpenACC matrix-vector multiplication
-           tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
      * CudaTest (found in /path/to/reframe/tutorial/example8.py)
-           descr: CUDA matrix-vector multiplication
-           tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
      * Example3Test (found in /path/to/reframe/tutorial/example3.py)
-           descr: Matrix-vector multiplication example with MPI
-           tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
      * Example7Test (found in /path/to/reframe/tutorial/example7.py)
-           descr: Matrix-vector multiplication (CUDA performance test)
-           tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
      * Example6Test (found in /path/to/reframe/tutorial/example6.py)
-           descr: Matrix-vector multiplication with L2 norm check
-           tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
      * Example2aTest (found in /path/to/reframe/tutorial/example2.py)
-           descr: Matrix-vector multiplication example with OpenMP
-           tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
      * Example2bTest (found in /path/to/reframe/tutorial/example2.py)
-           descr: Matrix-vector multiplication example with OpenMP
-           tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
+   Found 13 check(s).
+
+You may also retrieve a listing with detailed information about the each check using the option ``-L`` or ``--list-detailed``.
+The following example lists detailed information about the tutorial check:
+
+.. code-block:: none
+
+   Command line: ./bin/reframe -c tutorial/ -L
+   Reframe version: 2.18-dev2
+   Launched by user: USER
+   Launched on host: daint103
+   Reframe paths
+   =============
+       Check prefix      :
+       Check search path : 'tutorial/'
+       Stage dir prefix  : /path/to/reframe/stage/
+       Output dir prefix : /path/to/reframe/output/
+       Logging dir       : /path/to/reframe/logs
+   List of matched checks
+   ======================
+     * Example5Test (found in /path/to/reframe/tutorial/example5.py)
+         - description: Matrix-vector multiplication example with CUDA
+         - systems: daint:gpu
+         - environments: PrgEnv-cray, PrgEnv-gnu, PrgEnv-pgi
+         - modules: cudatoolkit
+         - task allocation: standard
+         - tags: tutorial
+         - maintainers: you-can-type-your-email-here
+     * Example1Test (found in /path/to/reframe/tutorial/example1.py)
+         - description: Simple matrix-vector multiplication example
+         - systems: *
+         - environments: *
+         - modules:
+         - task allocation: standard
+         - tags: tutorial
+         - maintainers: you-can-type-your-email-here
+     * Example4Test (found in /path/to/reframe/tutorial/example4.py)
+         - description: Matrix-vector multiplication example with OpenACC
+         - systems: daint:gpu
+         - environments: PrgEnv-cray, PrgEnv-pgi
+         - modules: craype-accel-nvidia60
+         - task allocation: standard
+         - tags: tutorial
+         - maintainers: you-can-type-your-email-here
+     * SerialTest (found in /path/to/reframe/tutorial/example8.py)
+         - description: Serial matrix-vector multiplication
+         - systems: *
+         - environments: *
+         - modules:
+         - task allocation: standard
+         - tags: tutorial
+         - maintainers: you-can-type-your-email-here
+     * OpenMPTest (found in /path/to/reframe/tutorial/example8.py)
+         - description: OpenMP matrix-vector multiplication
+         - systems: *
+         - environments: PrgEnv-cray, PrgEnv-gnu, PrgEnv-intel, PrgEnv-pgi
+         - modules:
+         - task allocation: standard
+         - tags: tutorial
+         - maintainers: you-can-type-your-email-here
+     * MPITest (found in /path/to/reframe/tutorial/example8.py)
+         - description: MPI matrix-vector multiplication
+         - systems: daint:gpu, daint:mc
+         - environments: PrgEnv-cray, PrgEnv-gnu, PrgEnv-intel, PrgEnv-pgi
+         - modules:
+         - task allocation: standard
+         - tags: tutorial
+         - maintainers: you-can-type-your-email-here
+     * OpenACCTest (found in /path/to/reframe/tutorial/example8.py)
+         - description: OpenACC matrix-vector multiplication
+         - systems: daint:gpu
+         - environments: PrgEnv-cray, PrgEnv-pgi
+         - modules: craype-accel-nvidia60
+         - task allocation: standard
+         - tags: tutorial
+         - maintainers: you-can-type-your-email-here
+     * CudaTest (found in /path/to/reframe/tutorial/example8.py)
+         - description: CUDA matrix-vector multiplication
+         - systems: daint:gpu
+         - environments: PrgEnv-gnu, PrgEnv-cray, PrgEnv-pgi
+         - modules: cudatoolkit
+         - task allocation: standard
+         - tags: tutorial
+         - maintainers: you-can-type-your-email-here
+     * Example3Test (found in /path/to/reframe/tutorial/example3.py)
+         - description: Matrix-vector multiplication example with MPI
+         - systems: daint:gpu, daint:mc
+         - environments: PrgEnv-cray, PrgEnv-gnu, PrgEnv-intel, PrgEnv-pgi
+         - modules:
+         - task allocation: standard
+         - tags: tutorial
+         - maintainers: you-can-type-your-email-here
+     * Example7Test (found in /path/to/reframe/tutorial/example7.py)
+         - description: Matrix-vector multiplication (CUDA performance test)
+         - systems: daint:gpu
+         - environments: PrgEnv-gnu, PrgEnv-cray, PrgEnv-pgi
+         - modules: cudatoolkit
+         - task allocation: standard
+         - tags: tutorial
+         - maintainers: you-can-type-your-email-here
+     * Example6Test (found in /path/to/reframe/tutorial/example6.py)
+         - description: Matrix-vector multiplication with L2 norm check
+         - systems: *
+         - environments: *
+         - modules:
+         - task allocation: standard
+         - tags: tutorial
+         - maintainers: you-can-type-your-email-here
+     * Example2aTest (found in /path/to/reframe/tutorial/example2.py)
+         - description: Matrix-vector multiplication example with OpenMP
+         - systems: *
+         - environments: PrgEnv-cray, PrgEnv-gnu, PrgEnv-intel, PrgEnv-pgi
+         - modules:
+         - task allocation: standard
+         - tags: tutorial
+         - maintainers: you-can-type-your-email-here
+     * Example2bTest (found in /path/to/reframe/tutorial/example2.py)
+         - description: Matrix-vector multiplication example with OpenMP
+         - systems: *
+         - environments: PrgEnv-cray, PrgEnv-gnu, PrgEnv-intel, PrgEnv-pgi
+         - modules:
+         - task allocation: standard
+         - tags: tutorial
+         - maintainers: you-can-type-your-email-here
    Found 13 check(s).
 
 
-The listing contains the name of the check, its description, the tags associated with it and a list of its maintainers.
-Note that this listing may also contain checks that are not supported by the current system.
-These checks will be just skipped if you try to run them.
+The detailed listing shows the description of the test, its supported systems and programming environments (``*`` stands for any system or programming environment), the environment modules that it loads, its tags and its maintainers.
+
+.. warning::
+   The list of modules showed in the detailed listing may not correspond to actual modules loaded by test, if the test customizes its behavior during the setup stage.
+
+
+.. note::
+   .. versionadded:: 2.15
+
+      Support for detailed listings.
+      Standard listing using the ``-l`` option is now shorter.
+
+.. note::
+   .. versionchanged:: 2.15
+
+      Test listing lists only tests supported by the current system.
+      Previous versions were showing all the tests found.
+
 
 Execution of the regression tests
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -192,7 +306,7 @@ ReFrame the does not search recursively into directories specified with the ``-c
 
 The ``-c`` option completely overrides the default path.
 Currently, there is no option to prepend or append to the default regression path.
-However, you can build your own check path by specifying multiple times the ``-c`` option.
+However, you can build your own check path by specifying a colon separated list of paths to the ``-c`` option.
 The ``-c``\ option accepts also regular files. This is very useful when you are implementing new regression tests, since it allows you to run only your test:
 
 .. code-block:: bash
@@ -207,12 +321,53 @@ The ``-c``\ option accepts also regular files. This is very useful when you are 
 
    .. versionadded:: 2.12
 
+.. warning::
+   Using the command line ``-c`` or ``--checkpath`` multiple times is not supported anymore and only the last option will be considered.
+   Multiple paths should be passed instead as a colon separated list:
+
+   .. code-block:: bash
+
+      ./bin/reframe -c /path/to/my/first/test.py:/path/to/my/second/ -r
+
+
+   .. versionchanged:: 3.0
+
 
 Filtering of Regression Tests
 -----------------------------
 
 At this phase you can select which regression tests should be run or listed.
 There are several ways to select regression tests, which we describe in more detail here:
+
+Selecting tests by system
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. versionadded:: 2.15
+
+
+By default, ReFrame always selects the tests that are supported by the current system.
+If you want to list the tests supported by a different system, you may achieve that by passing the ``--system`` option:
+
+.. code-block:: bash
+
+  ./bin/reframe --system=kesch -l
+
+
+This example lists all the tests that are supported by the system named ``kesch``.
+It is also possible to list only the tests that are supported by a specific system partition.
+The following example will list only the tests suported by the ``login`` partition of the ``kesch`` system:
+
+.. code-block:: bash
+
+  ./bin/reframe --system=kesch:login -l
+
+
+Finally, in order to list all the tests found regardless of their supported systems, you should pass the ``--skip-system-check`` option:
+
+.. code-block:: bash
+
+  ./bin/reframe --skip-system-check -l
+
 
 Selecting tests by programming environment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -226,7 +381,7 @@ To select tests by the programming environment, use the ``-p`` or ``--prgenv`` o
 This will select all the checks that support the ``PrgEnv-gnu`` environment.
 
 You can also specify multiple times the ``-p`` option, in which case a test will be selected if it support all the programming environments specified in the command line.
-For example the following will select all the checks that can run with both ``PrgEnv-cray`` and ``PrgEnv-gnu``:
+For example the following will select all the checks that can run with both ``PrgEnv-cray`` and ``PrgEnv-gnu`` on the current system:
 
 .. code-block:: bash
 
@@ -234,11 +389,30 @@ For example the following will select all the checks that can run with both ``Pr
 
 If you are going to run a set of tests selected by programming environment, they will run only for the selected programming environment(s).
 
+The ``-p`` option accepts also the Python `regular expression syntax <https://docs.python.org/3.6/library/re.html#regular-expression-syntax>`__.
+In fact, the argument to ``-p`` option is treated as a regular expression always. This means that the ``-p PrgEnv-gnu`` will match also tests that support a ``PrgEnv-gnuXX`` environment.
+If you would like to stricly select tests that support ``PrgEnv-gnu`` only and not ``PrgEnv-gnuXX``, you should write ``-p PrgEnv-gnu$``.
+As described above multiple ``-p`` options are AND-ed.
+Combining that with regular expressions can be quite powerful.
+For example, the following will select all tests that support programming environment ``foo`` and either ``PrgEnv-gnu`` or ``PrgEnv-pgi``:
+
+.. code-block:: bash
+
+   ./bin/reframe -p foo -p 'PrgEnv-(gnu|pgi)' -l
+
+
+.. note::
+   .. versionadded:: 2.17
+
+   The ``-p`` option recognizes regular expressions as arguments.
+
+
 Selecting tests by tags
 ^^^^^^^^^^^^^^^^^^^^^^^
 
-As we have seen in the `"ReFrame tutorial" <tutorial.html>`__, every regression test may be associated with a set of tags. Using the ``-t`` or ``--tag`` option you can select the regression tests associated with a specific tag.
-For example the following will list all the tests that have a ``maintenance`` tag:
+As we have seen in the `"ReFrame tutorial" <tutorial.html>`__, every regression test may be associated with a set of tags.
+Using the ``-t`` or ``--tag`` option you can select the regression tests associated with a specific tag.
+For example the following will list all the tests that have a ``maintenance`` tag and can run on the current system:
 
 .. code-block:: bash
 
@@ -246,6 +420,11 @@ For example the following will list all the tests that have a ``maintenance`` ta
 
 Similarly to the ``-p`` option, you can chain multiple ``-t`` options together, in which case a regression test will be selected if it is associated with all the tags specified in the command line.
 The list of tags associated with a check can be viewed in the listing output when specifying the ``-l`` option.
+
+.. note::
+   .. versionadded:: 2.17
+
+   The ``-t`` option recognizes regular expressions as arguments.
 
 Selecting tests by name
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -260,7 +439,7 @@ For example, you can select only the ``Example7Test`` from the tutorial as follo
 .. code-block:: none
 
   Command line: ./bin/reframe -c tutorial/ -n Example7Test -l
-  Reframe version: 2.13-dev0
+  Reframe version: 2.15-dev1
   Launched by user: USER
   Launched on host: daint103
   Reframe paths
@@ -273,8 +452,6 @@ For example, you can select only the ``Example7Test`` from the tutorial as follo
   List of matched checks
   ======================
     * Example7Test (found in /path/to/reframe/tutorial/example7.py)
-          descr: Matrix-vector multiplication (CUDA performance test)
-          tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
   Found 1 check(s).
 
 
@@ -283,7 +460,7 @@ Similarly, you can exclude this test by passing the ``-x Example7Test`` option:
 .. code-block:: none
 
   Command line: ./bin/reframe -c tutorial -x Example7Test -l
-  Reframe version: 2.13-dev0
+  Reframe version: 2.15-dev1
   Launched by user: USER
   Launched on host: daint103
   Reframe paths
@@ -296,42 +473,30 @@ Similarly, you can exclude this test by passing the ``-x Example7Test`` option:
   List of matched checks
   ======================
     * Example5Test (found in /path/to/reframe/tutorial/example5.py)
-          descr: Matrix-vector multiplication example with CUDA
-          tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
     * Example1Test (found in /path/to/reframe/tutorial/example1.py)
-          descr: Simple matrix-vector multiplication example
-          tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
     * Example4Test (found in /path/to/reframe/tutorial/example4.py)
-          descr: Matrix-vector multiplication example with OpenACC
-          tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
     * SerialTest (found in /path/to/reframe/tutorial/example8.py)
-          descr: Serial matrix-vector multiplication
-          tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
     * OpenMPTest (found in /path/to/reframe/tutorial/example8.py)
-          descr: OpenMP matrix-vector multiplication
-          tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
     * MPITest (found in /path/to/reframe/tutorial/example8.py)
-          descr: MPI matrix-vector multiplication
-          tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
     * OpenACCTest (found in /path/to/reframe/tutorial/example8.py)
-          descr: OpenACC matrix-vector multiplication
-          tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
     * CudaTest (found in /path/to/reframe/tutorial/example8.py)
-          descr: CUDA matrix-vector multiplication
-          tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
     * Example3Test (found in /path/to/reframe/tutorial/example3.py)
-          descr: Matrix-vector multiplication example with MPI
-          tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
     * Example6Test (found in /path/to/reframe/tutorial/example6.py)
-          descr: Matrix-vector multiplication with L2 norm check
-          tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
     * Example2aTest (found in /path/to/reframe/tutorial/example2.py)
-          descr: Matrix-vector multiplication example with OpenMP
-          tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
     * Example2bTest (found in /path/to/reframe/tutorial/example2.py)
-          descr: Matrix-vector multiplication example with OpenMP
-          tags: {'tutorial'}, maintainers: ['you-can-type-your-email-here']
   Found 12 check(s).
+
+
+Both ``-n`` and ``-x`` options can be chained, in which case either the tests that have any of the specified names are selected or excluded from running.
+They may also accept regular expressions as arguments.
+
+.. note::
+   .. versionadded:: 2.17
+
+      The ``-n`` and ``-x`` options recognize regular expressions as arguments.
+      Chaining these options, e.g., ``-n A -n B``, is equivalent to a regular expression that applies OR to the individual arguments, i.e., equivalent to ``-n 'A|B'``.
+
+
 
 
 Controlling the Execution of Regression Tests
@@ -355,11 +520,13 @@ They are summarized below:
   In this example, Slurm's policy is that later definitions of options override previous ones.
   So, in this case, way you would override the standard output for all the submitted jobs!
 
+* ``--flex-alloc-tasks {all|idle|NUM}``: (Deprecated) Please use ``--flex-alloc-nodes`` instead.
+* ``--flex-alloc-nodes {all|idle|NUM}``: Automatically determine the number of nodes allocated for each test.
 * ``--force-local``: Force the local execution of the selected tests.
   No jobs will be submitted.
 * ``--skip-sanity-check``: Skip sanity checking phase.
 * ``--skip-performance-check``: Skip performance verification phase.
-* ``--strict``: Force strict performance checking. Some tests may set their :attr:`strict_check <reframe.core.pipeline.RegressionTest.strick_check>` attribute to :class:`False` (see `"Reference Guide" <reference.html>`__) in order to just let their performance recorded but not yield an error.
+* ``--strict``: Force strict performance checking. Some tests may set their :attr:`strict_check <reframe.core.pipeline.RegressionTest.strick_check>` attribute to :class:`False` (see `"Reference Guide" <running.html#controlling-the-execution-of-regression-tests>`__) in order to just let their performance recorded but not yield an error.
   This option overrides this behavior and forces all tests to be strict.
 * ``--skip-system-check``: Skips the system check and run the selected tests even if they do not support the current system.
   This option is sometimes useful when you need to quickly verify if a regression test supports a new system.
@@ -372,6 +539,132 @@ They are summarized below:
     ./bin/reframe -c /path/to/my/check.py -p PrgEnv-gnu --skip-prgenv-check -r
 
 * ``--max-retries NUM``: Specify the maximum number of times a failed regression test may be retried (default: 0).
+
+
+
+Generating a Performance Report
+-------------------------------
+
+If you are running performance tests, you may instruct ReFrame to produce a performance report at the end using the `--performance-report` command-line options.
+The performance report is printed after the output of the regression tests and has the following format:
+
+.. code-block:: none
+
+  PERFORMANCE REPORT
+  ------------------------------------------------------------------------------
+  Check1
+  - system:partition
+      - PrgEnv1
+          * num_tasks: <num_tasks>
+          * perf_variable1: <value> <units>
+          * perf_variable2: <value> <units>
+          * ...
+      - PrgEnv2
+          * num_tasks: <num_tasks>
+          * perf_variable1: <value> <units>
+          * perf_variable2: <value> <units>
+          * ...
+  ------------------------------------------------------------------------------
+  Check2
+  - system:partition
+      - PrgEnv1
+          * num_tasks: <num_tasks>
+          * perf_variable1: <value> <units>
+          * perf_variable2: <value> <units>
+          * ...
+      - PrgEnv2
+          * num_tasks: <num_tasks>
+          * perf_variable1: <value> <units>
+          * perf_variable2: <value> <units>
+          * ...
+  ------------------------------------------------------------------------------
+
+The number of tasks and the achieved performance values are listed by system partition and programming environment for each performance test that has run.
+Performance variables are the variables collected through the :attr:`reframe.core.pipeline.RegressionTest.perf_patterns` attribute.
+
+The following command will run the CUDA matrix-vector multiplication example from the `tutorial <tutorial.html>`__ and will produce a performance report:
+
+.. code-block:: bash
+
+  ./bin/reframe -C tutorial/config/settings.py -c tutorial/example7.py -r --performance-report
+
+.. code-block:: none
+
+  Command line: ./bin/reframe -C tutorial/config/settings.py -c tutorial/example7.py -r --performance-report
+  Reframe version: 2.20-dev2
+  Launched by user: USER
+  Launched on host: daint101
+  Reframe paths
+  =============
+      Check prefix      :
+      Check search path : 'example7.py'
+      Stage dir prefix     : /path/to/reframe/stage/
+      Output dir prefix    : /path/to/reframe/output/
+      Perf. logging prefix : /path/to/reframe/perflogs
+  [==========] Running 1 check(s)
+  [==========] Started on Thu Oct 24 17:46:55 2019
+
+  [----------] started processing Example7Test (Matrix-vector multiplication (CUDA performance test))
+  [ RUN      ] Example7Test on daint:gpu using PrgEnv-cray
+  [       OK ] Example7Test on daint:gpu using PrgEnv-cray
+  [ RUN      ] Example7Test on daint:gpu using PrgEnv-gnu
+  [       OK ] Example7Test on daint:gpu using PrgEnv-gnu
+  [ RUN      ] Example7Test on daint:gpu using PrgEnv-pgi
+  [       OK ] Example7Test on daint:gpu using PrgEnv-pgi
+  [----------] finished processing Example7Test (Matrix-vector multiplication (CUDA performance test))
+
+  [  PASSED  ] Ran 3 test case(s) from 1 check(s) (0 failure(s))
+  [==========] Finished on Thu Oct 24 17:47:34 2019
+  ==============================================================================
+  PERFORMANCE REPORT
+  ------------------------------------------------------------------------------
+  Example7Test
+  - daint:gpu
+     - PrgEnv-cray
+        * num_tasks: 1
+        * perf: 49.403965 Gflop/s
+     - PrgEnv-gnu
+        * num_tasks: 1
+        * perf: 50.093877 Gflop/s
+     - PrgEnv-pgi
+        * num_tasks: 1
+        * perf: 50.549009 Gflop/s
+  ------------------------------------------------------------------------------
+
+
+For completeness, we show here the corresponding section from the ``Example7Test``, so that the connection between the test's code and the output becomes clear:
+
+.. literalinclude:: ../tutorial/example7.py
+  :lines: 19-27
+  :dedent: 8
+
+
+If you are writing a benchmark, it is often the case that you will run it in an unknown system, where you don't have any reference value.
+Normally, if ReFrame cannot find a reference for the system it is running on, it will complain and mark the test as a failure.
+However, you may right your test in such a way, that it allows it to run successfully on any new system.
+To achieve this, simply insert a "catch-all" ``*`` entry in the :attr:`reframe.core.pipeline.RegressionTest.reference` attribute:
+
+
+.. code-block:: python
+
+  self.reference = {
+      '*': {
+          'perf_var1': (0, None, None, 'units'),
+          'perf_var2': (0, None, None, 'units')
+          ...
+      }
+  }
+
+The performance test will always pass on new systems and you may use the ``--performance-report`` option for getting the actual performance values.
+
+
+.. note::
+
+   The performance report should not be confused with `performance logging <#performance-logging>`__.
+   It is simply a way of quickly visualizing the performance results and is useful for interactive testing.
+   Performance logging, if configured, occurs independently of the performance report and is meant for keeping performance data over time.
+   Its formatting facilitates parsing and it should be used for later analysis of the performance data obtained.
+
 
 Configuring ReFrame Directories
 -------------------------------
@@ -510,7 +803,7 @@ Logging in ReFrame is configured by the ``logging_config`` variable in the ``ref
 The default configuration looks as follows:
 
 .. literalinclude:: ../reframe/settings.py
-  :lines: 51-78
+  :lines: 47-74
   :dedent: 4
 
 Note that this configuration dictionary is not the same as the one used by Python's logging framework.
@@ -544,15 +837,19 @@ Common Log Handler Attributes
 All handlers accept the following set of attributes (keys) in their configuration:
 
 * ``type``: (required) the type of the handler.
-  There are two types of handlers used for standard logging in ReFrame
+  There are several types of handlers used for logging in ReFrame.
+  Some of them are only relevant for performance logging:
 
   1. ``file``: a handler that writes log records in file.
   2. ``stream``: a handler that writes log records in a file stream.
+  3. ``syslog``: a handler that sends log records to Unix syslog.
+  4. ``filelog``: a handler for writing performance logs (relevant only for `performance logging <#performance-logging>`__).
+  5. ``graylog``: a handler for sending performance logs to a Graylog server (relevant only for `performance logging <#performance-logging>`__).
 
 
 * ``level``: (default: ``DEBUG``) The lowest level of log records that this handler can process.
 * ``format`` (default: ``'%(message)s'``): Format string for the printout of the log record.
-  ReFrame supports all the `format strings <https://docs.python.org/3.6/library/logging.html#logrecord-attributes>`__ from Python's logging library and provides the following additional ones:
+  ReFrame supports all the `log record attributes <https://docs.python.org/3.6/library/logging.html#logrecord-attributes>`__ from Python's logging library and provides the following additional ones:
 
   - ``check_environ``: The programming environment a test is currently executing for.
   - ``check_info``: Print live information of the currently executing check.
@@ -560,8 +857,17 @@ All handlers accept the following set of attributes (keys) in their configuratio
     It can be configured on a per test basis by overriding the :func:`info <reframe.core.pipeline.RegressionTest.info>` method of a specific regression test.
   - ``check_jobid``: Prints the job or process id of the job or process associated with the currently executing regression test.
     If a job or process is not yet created, ``-1`` will be printed.
+  - ``check_job_completion_time``: *[new in 2.21]* The completion time of the job spawned by this regression test.
+    This timestamp will be formatted according to ``datefmt`` (see below).
+    The accuracy of the timestamp depends on the backend scheduler.
+    The ``slurm`` scheduler backend relies on job accounting and returns the actual termination time of the job.
+    The rest of the backends report as completion time the moment when the framework realizes that the spawned job has finished.
+    In this case, the accuracy depends on the execution policy used.
+    If tests are executed with the serial execution policy, this is close to the real completion time, but if the asynchronous execution policy is used, it can differ significantly.
+    If the job completion time cannot be retrieved, ``None`` will be printed.
   - ``check_name``: Prints the name of the regression test on behalf of which ReFrame is currently executing.
     If ReFrame is not in the context of regression test, ``reframe`` will be printed.
+  - ``check_num_tasks``: The number of tasks assigned to the regression test.
   - ``check_outputdir``: The output directory associated with the currently executing test.
   - ``check_partition``: The system partition where this test is currently executing.
   - ``check_stagedir``: The stage directory associated with the currently executing test.
@@ -571,14 +877,19 @@ All handlers accept the following set of attributes (keys) in their configuratio
   - ``osgroup``: The group name of the OS user running ReFrame.
   - ``version``: The ReFrame version.
 
-* ``datefmt`` (default: ``'%FT%T'``) The format that will be used for outputting timestamps (i.e., the ``%(asctime)s`` field).
-  Acceptable formats must conform to standard library's `time.strftime() <https://docs.python.org/3.6/library/time.html#time.strftime>`__ function.
+* ``datefmt`` (default: ``'%FT%T'``) The format that will be used for outputting timestamps (i.e., the ``%(asctime)s`` and the ``%(check_job_completion_time)s`` fields).
+  In addition to the format directives supported by the standard library's `time.strftime() <https://docs.python.org/3.6/library/time.html#time.strftime>`__ function, ReFrame allows you to use the ``%:z`` directive -- a GNU ``date`` extension --  that will print the time zone difference in a RFC3339 compliant way, i.e., ``+/-HH:MM`` instead of ``+/-HHMM``.
 
 .. caution::
    The ``testcase_name`` logging attribute is replaced with the ``check_info``, which is now also configurable
 
    .. versionchanged:: 2.10
 
+
+.. note::
+   Support for fully RFC3339 compliant time zone formatting.
+
+   .. versionadded:: 3.0
 
 
 File log handlers
@@ -603,6 +914,25 @@ In addition to the common log handler attributes, file log handlers accept the f
   Available values: ``stdout`` for standard output and ``stderr`` for standard error.
 
 
+Syslog log handler
+""""""""""""""""""
+
+In addition to the common log handler attributes, file log handlers accept the following:
+
+* ``socktype``: The type of socket where the handler will send log records to. There are two socket types:
+
+   1. ``udp``: (default) This opens a UDP datagram socket.
+   2. ``tcp``: This opens a TCP stream socket.
+
+* ``facility``: (default: ``user``) The Syslog facility to send records to.
+  The list of supported facilities can be found `here <https://docs.python.org/3.6/library/logging.handlers.html#logging.handlers.SysLogHandler.encodePriority>`__.
+* ``address``: (required) The address where the handler will connect to.
+  This can either be of the form ``<host>:<port>`` or simply a path that refers to a Unix domain socket.
+
+
+.. note::
+   .. versionadded:: 2.17
+
 
 Performance Logging
 ^^^^^^^^^^^^^^^^^^^
@@ -611,7 +941,7 @@ ReFrame supports an additional logging facility for recording performance values
 This is configured by the ``perf_logging_config`` variables, whose syntax is the same as for the ``logging_config``:
 
 .. literalinclude:: ../reframe/settings.py
-  :lines: 80-98
+  :lines: 76-95
   :dedent: 4
 
 Performance logging introduces two new log record handlers, specifically designed for this purpose.
@@ -625,7 +955,7 @@ The attributes of this handler are the following:
 * ``prefix``: This is the directory prefix (usually dynamic) where the performance logs of a test will be stored.
   This attribute accepts any of the check-specific formatting placeholders described `above <#common-log-handler-attributes>`__.
   This allows you to create dynamic paths based on the current system, partition and/or programming environment a test executes.
-  This dynamic prefix is appended to the "global" performance log directory prefix, configurable through the ``--perflogdir`` option.
+  This dynamic prefix is appended to the "global" performance log directory prefix, configurable through the ``--perflogdir`` option or the ``perflogdir`` attribute of the `system configuration <configuring.html#system-configuration>`__.
   The default configuration of ReFrame for performance logging (shown in the previous listing) generates the following files:
 
   .. code-block:: none
@@ -668,15 +998,19 @@ The attributes of this handler are the following:
   - ``check_perf_ref``: The reference performance value of a certain performance variable.
   - ``check_perf_value``: The performance value obtained by this test for a certain performance variable.
   - ``check_perf_var``: The name of the `performance variable <tutorial.html#writing-a-performance-test>`__, whose value is logged.
+  - ``check_perf_unit``: The unit of measurement for the measured performance variable, if specified in the corresponding tuple of the :attr:`reframe.core.pipeline.RegressionTest.reference` attribute.
+
+.. note::
+   .. versionchanged:: 2.20
+      Support for logging `num_tasks` in performance logs was added.
 
 Using the default performance log format, the resulting log entries look like the following:
 
 .. code-block:: none
 
-  2018-05-30T00:14:53|reframe 2.13-dev0|Example7Test on daint:gpu using PrgEnv-gnu|jobid=749667|perf=49.152408|ref=50.0 (l=-0.1, u=0.1)
-  2018-05-30T00:14:53|reframe 2.13-dev0|Example7Test on daint:gpu using PrgEnv-pgi|jobid=749668|perf=48.930356|ref=50.0 (l=-0.1, u=0.1)
-  2018-05-30T00:14:53|reframe 2.13-dev0|Example7Test on daint:gpu using PrgEnv-cray|jobid=749666|perf=48.914735|ref=50.0 (l=-0.1, u=0.1)
-
+    2019-10-23T13:46:05|reframe 2.20-dev2|Example7Test on daint:gpu using PrgEnv-cray|jobid=813559|num_tasks=1|perf=49.681565|ref=50.0 (l=-0.1, u=0.1)|Gflop/s
+    2019-10-23T13:46:27|reframe 2.20-dev2|Example7Test on daint:gpu using PrgEnv-gnu|jobid=813560|num_tasks=1|perf=50.737651|ref=50.0 (l=-0.1, u=0.1)|Gflop/s
+    2019-10-23T13:46:48|reframe 2.20-dev2|Example7Test on daint:gpu using PrgEnv-pgi|jobid=813561|num_tasks=1|perf=50.720164|ref=50.0 (l=-0.1, u=0.1)|Gflop/s
 
 The interpretation of the performance values depends on the individual tests.
 The above output is from the CUDA performance test we presented in the `tutorial <tutorial.html#writing-a-performance-test>`__, so the value refers to the achieved Gflop/s.
@@ -699,6 +1033,7 @@ An example configuration of such a handler is the following:
       'format': (
           '%(asctime)s|reframe %(version)s|'
           '%(check_info)s|jobid=%(check_jobid)s|'
+          'num_tasks=%(check_num_tasks)s|'
           '%(check_perf_var)s=%(check_perf_value)s|'
           'ref=%(check_perf_ref)s '
           '(l=%(check_perf_lower_thres)s, '
@@ -719,15 +1054,29 @@ This handler introduces three new attributes:
 This log handler uses internally `pygelf <https://pypi.org/project/pygelf/>`__, so this Python module must be available, otherwise this log handler will be ignored.
 `GELF <http://docs.graylog.org/en/latest/pages/gelf.html>`__ is a format specification for log messages that are sent over the network.
 The ReFrame's ``graylog`` handler sends log messages in JSON format using an HTTP POST request to the specified host and port.
-More details on this log format may be found `here <http://docs.graylog.org/en/latest/pages/gelf.html#gelf-payload-specification>`__
+More details on this log format may be found `here <http://docs.graylog.org/en/latest/pages/gelf.html#gelf-payload-specification>`__.
+
+
+Adjusting verbosity of output
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+ReFrame's output is handled by a logging mechanism.
+In fact, as revealed in the corresponding configuration entry (see `Configuring Logging <#configuring-logging>`__), a specific logging handler takes care of printing ReFrame's message in the standard output.
+One way to change the verbosity level of the output is by explicitly setting the value of the ``level`` key in the configuration of the output handler.
+Alternatively, you may increase the verbosity level from the command line by chaining the ``-v`` or ``--verbose`` option.
+Every time ``-v`` is specified, the next verbosity level will be selected for the output.
+For example, if the initial level of the output handler is set to ``INFO`` (in the configuration file), specifying ``-v`` twice will make ReFrame spit out all ``DEBUG`` messages.
+
+.. versionadded:: 2.16
+   ``-v`` and ``--verbose`` options are added.
 
 
 Asynchronous Execution of Regression Checks
 -------------------------------------------
 
 From version `2.4 <https://github.com/eth-cscs/reframe/releases/tag/v2.4>`__, ReFrame supports asynchronous execution of regression tests.
-This execution policy can be enabled by passing the option ``--exec-policy=async`` to the command line.
-The default execution policy is ``serial`` which enforces a sequential execution of the selected regression tests.
+This execution policy is the default one.
+To enforce a sequential execution of the regression tests the ``serial`` execution policy can be enabled by passing the option ``--exec-policy=serial`` to the command line.
 The asynchronous execution policy parallelizes only the `running phase <pipeline.html#the-run-phase>`__ of the tests.
 The rest of the phases remain sequential.
 
@@ -819,11 +1168,20 @@ Here is an example output of ReFrame using asynchronous execution policy:
 The asynchronous execution policy may provide significant overall performance benefits for run-only regression tests.
 For compile-only and normal tests that require a compilation, the execution time will be bound by the total compilation time of the test.
 
+.. note::
+   .. versionchanged:: 3.0
+
+      The asynchronous execution policy has become the default.
+
 
 Manipulating modules
 --------------------
 
 .. versionadded:: 2.11
+
+.. note::
+   .. versionchanged:: 2.19
+      Module self loops are now allowed in *module mappings*.
 
 ReFrame allows you to change the modules loaded by a regression test on-the-fly without having to edit the regression test file.
 This feature is extremely useful when you need to quickly test a newer version of a module, but it also allows you to completely decouple the module names used in your regression tests from the real module names in a system, thus making your test even more portable.
@@ -893,3 +1251,74 @@ If you now try to run a test that loads the module `cudatoolkit`, the following 
      * Failing phase: setup
      * Reason: caught framework exception: module cyclic dependency: cudatoolkit->foo->bar->foobar->cudatoolkit
    ------------------------------------------------------------------------------
+
+On the other hand, module mappings containing self loops are allowed.
+In the following example, ReFrame will load both ``module-1`` and ``module-2`` whenever the ``module-1`` is encountered:
+
+.. code-block:: none
+
+  --map-module 'module-1: module-1 module-2'
+
+Controlling the Flexible Node Allocation
+----------------------------------------
+
+.. versionadded:: 2.15
+
+.. note::
+   .. versionchanged:: 2.21
+      Flexible task allocation is now based on number of nodes.
+
+.. warning::
+      The command line option ``--flex-alloc-tasks`` is now deprecated, you should use ``--flex-alloc-nodes`` instead.
+
+
+ReFrame can automatically set the number of tasks of a particular test, if its :attr:`num_tasks <reframe.core.pipeline.RegressionTest.num_tasks>` attribute is set to a value ``<=0``.
+By default, ReFrame will spawn such a test on all the idle nodes of the current system partition.
+This behavior can be adjusted using the ``--flex-alloc-nodes`` command line option.
+This option accepts three values:
+
+  1. ``idle``: (default) In this case, ReFrame will set the number of tasks to the number of idle nodes of the current logical partition multiplied by the :attr:`num_tasks_per_node <reframe.core.pipeline.RegressionTest.num_tasks_per_node>` attribute of the particular test.
+  2. ``all``: In this case, ReFrame will set the number of tasks to the number of all the nodes of the current logical partition multiplied by the :attr:`num_tasks_per_node <reframe.core.pipeline.RegressionTest.num_tasks_per_node>` attribute of the particular test.
+
+  3. Any positive integer: In this case, ReFrame will set the number of tasks to the given value multiplied by the :attr:`num_tasks_per_node <reframe.core.pipeline.RegressionTest.num_tasks_per_node>` attribute of the particular test.
+
+The flexible allocation of number of nodes takes into account any additional logical constraint imposed by the command line options affecting the job allocation, such as ``--partition``, ``--reservation``, ``--nodelist``, ``--exclude-nodes`` and ``--job-option`` (if the scheduler option passed to the latter imposes a restriction).
+Notice that ReFrame will issue an error if the resulting number of nodes is zero.
+
+For example, using the following options would run a flexible test on all the nodes of reservation ``foo`` except the nodes ``n0[1-5]``:
+
+.. code-block:: bash
+
+  --flex-alloc-nodes=all --reservation=foo --exclude-nodes=n0[1-5]
+
+
+.. note::
+   Flexible node allocation is supported only for the Slurm scheduler backend.
+
+.. warning::
+   Test cases resulting from flexible ReFrame tests may not be run using the asynchronous execution policy, because the nodes satisfying the required criteria will be allocated for the first test case, causing all subsequent ones to fail.
+
+Testing non-default Cray Programming Environments
+-------------------------------------------------
+
+.. versionadded:: 2.20
+
+
+Cray machines provide a set of compilers, scientific software libraries and an MPI implementation that is optimized for the Cray hardware.
+These comprise the Cray Programming Environment (PE).
+All the functionality of the PE is structured around the default versions (or modules) of the libraries.
+If a non-default library or a non-default PE are to be tested, users have to do the following after having loaded all of their Cray modules:
+
+.. code:: bash
+
+   export LD_LIBRARY_PATH=$CRAY_LD_LIBRARY_PATH:$LD_LIBRARY_PATH
+
+
+In order to test a non-default Cray Programming Environment with ReFrame you have to pass the ``--non-default-craype``.
+This will cause ReFrame to export ``LD_LIBRARY_PATH`` as shown above.
+Here is an example that shows how to test a non-default Cray PE with ReFrame:
+
+.. code:: bash
+
+   module load cdt/19.08
+   reframe <options> --non-default-craype  -r

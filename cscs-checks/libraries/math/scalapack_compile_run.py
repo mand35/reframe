@@ -1,43 +1,50 @@
 import os
+
+import reframe as rfm
 import reframe.utility.sanity as sn
 
-from reframe.core.pipeline import RegressionTest
 
-
-class ScaLAPACKTest(RegressionTest):
-    def __init__(self, name, linkage, **kwargs):
-        super().__init__(name+linkage, os.path.dirname(__file__), **kwargs)
-
+class ScaLAPACKTest(rfm.RegressionTest):
+    def __init__(self, linkage):
+        self.linkage = linkage
         self.sourcesdir = os.path.join(self.current_system.resourcesdir,
                                        'scalapack')
-        self.maintainers = ['CB', 'LM', 'MKr']
-        self.tags = {'production'}
-        self.descr = name + linkage.capitalize()
-
         self.valid_systems = ['daint:gpu', 'daint:mc', 'dom:mc',
-                              'dom:gpu', 'kesch:cn',  'monch:compute']
+                              'dom:gpu', 'kesch:cn']
         self.valid_prog_environs = ['PrgEnv-cray', 'PrgEnv-gnu',
                                     'PrgEnv-intel']
         self.num_tasks = 16
         self.num_tasks_per_node = 8
         self.variables = {'CRAYPE_LINK_TYPE': linkage}
+        if self.current_system.name == 'kesch':
+            self.exclusive_access = True
+            self.valid_prog_environs = ['PrgEnv-cray']
+            if linkage == 'static':
+                # Static linkage not supported on Kesch
+                self.valid_prog_environs = []
 
-        # STATIC LINKING NOT SUPPORTED BY ENVIRONMENTS
-        if (self.current_system.name in ['kesch', 'leone', 'monch'] and
-            linkage == 'static'):
-            self.valid_prog_environs = []
+        self.build_system = 'SingleSource'
+        self.build_system.fflags = ['-O3']
+        self.maintainers = ['CB', 'LM']
+        self.tags = {'production', 'external-resources'}
 
-    def compile(self):
-        if (self.current_system.name in ['kesch', 'monch'] and
-            self.current_environ.name == 'PrgEnv-gnu'):
-            self.current_environ.ldflags = '-lscalapack -lopenblas'
-        self.current_environ.fflags = '-O3'
-        super().compile()
+    @rfm.run_before('compile')
+    def cray_linker_workaround(self):
+        # FIXME: static compilation yields a link error in case of
+        # PrgEnv-cray(Cray Bug #255707)
+        if not (self.linkage == 'static' and
+                self.current_system.name == 'dom' and
+                self.current_environ.name == 'PrgEnv-cray'):
+            return
+
+        self.variables['ALT_LINKER'] = '/usr/bin/ld'
 
 
+@rfm.required_version('>=2.14')
+@rfm.parameterized_test(['static'], ['dynamic'])
 class ScaLAPACKSanity(ScaLAPACKTest):
-    def __init__(self, linkage, **kwargs):
-        super().__init__('scalapack_compile_run_', linkage, **kwargs)
+    def __init__(self, linkage):
+        super().__init__(linkage)
         self.sourcepath = 'scalapack_compile_run.f'
 
         def fortran_float(value):
@@ -67,42 +74,5 @@ class ScaLAPACKSanity(ScaLAPACKTest):
             scalapack_sanity(4, 1, 0.8626176298213052),
             scalapack_sanity(4, 2, 0.4064822185450869),
             scalapack_sanity(4, 3, 0.2483911184660867),
-            scalapack_sanity(4, 4, 0.1701907253504270)])
-
-
-class ScaLAPACKPerf(ScaLAPACKTest):
-    def __init__(self, linkage, **kwargs):
-        super().__init__('scalapack_performance_compile_run_', linkage,
-                         **kwargs)
-
-        # FIXME:
-        # Currently, this test case is only aimed for the monch acceptance,
-        # yet it could be interesting to extend it to other systems.
-        # NB: The test case is very small, but larger cases did not succeed!
-
-        self.tags |= {'monch_acceptance'}
-        self.sourcepath = 'scalapack_performance_compile_run.f'
-        self.valid_systems = ['monch:compute']
-        self.valid_prog_environs = ['PrgEnv-gnu']
-        self.num_tasks = 64
-        self.num_tasks_per_node = 16
-
-        self.sanity_patterns = sn.assert_found(r'Run', self.stdout)
-        self.perf_patterns = {
-            'perf': sn.max(
-                sn.extractall(r'GFLOPS/s:\s+(?P<gflops>\S+)',
-                              self.stdout, 'gflops', float)
-            )
-        }
-
-        self.reference = {
-            'monch:compute': {
-                'perf': (24., -0.1, None)
-            }
-        }
-
-
-def _get_checks(**kwargs):
-    return [ScaLAPACKSanity('dynamic', **kwargs),
-            ScaLAPACKSanity('static', **kwargs),
-            ScaLAPACKPerf('dynamic', **kwargs)]
+            scalapack_sanity(4, 4, 0.1701907253504270)
+        ])

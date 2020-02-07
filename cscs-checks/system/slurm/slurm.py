@@ -1,94 +1,97 @@
-import os
+import reframe as rfm
 import reframe.utility.sanity as sn
 
-from reframe.core.pipeline import RegressionTest, RunOnlyRegressionTest
 
+class SlurmSimpleBaseCheck(rfm.RunOnlyRegressionTest):
+    '''Base class for Slurm simple binary tests'''
 
-# Base class for Slurm simple binary tests
-class SlurmSimpleBaseCheck(RunOnlyRegressionTest):
-    def __init__(self, name, num_nodes, **kwargs):
-        super().__init__('slurm_%s%s' %
-                         (name, '_all' if num_nodes == -1 else ''),
-                         os.path.dirname(__file__), **kwargs)
-
+    def __init__(self):
         self.valid_systems = ['daint:gpu', 'daint:mc',
                               'dom:gpu', 'dom:mc',
                               'kesch:cn', 'kesch:pn']
         self.valid_prog_environs = ['PrgEnv-cray']
-        self.tags = {'slurm', 'maintenance', 'ops'}
-
-        self.num_tasks = num_nodes
-        self.tags.add('production')
-
-        if num_nodes == 1:
-            self.tags.add('single-node')
-
+        self.tags = {'slurm', 'maintenance', 'ops',
+                     'production', 'single-node'}
         self.num_tasks_per_node = 1
-        self.descr = '%s on %s node(s)' % (name, self.num_tasks)
-        self.maintainers = ['RS', 'VK']
+        if self.current_system.name == 'kesch':
+            self.exclusive_access = True
+
+        self.maintainers = ['RS', 'VH']
 
 
-# Base class for Slurm tests that require compiling some code
-class SlurmCompiledBaseCheck(RegressionTest):
-    def __init__(self, name, num_nodes, **kwargs):
-        super().__init__('slurm_%s%s' %
-                         (name, '_all' if num_nodes == -1 else ''),
-                         os.path.dirname(__file__), **kwargs)
+class SlurmCompiledBaseCheck(rfm.RegressionTest):
+    '''Base class for Slurm tests that require compiling some code'''
 
+    def __init__(self):
         self.valid_systems = ['daint:gpu', 'daint:mc',
                               'dom:gpu', 'dom:mc',
                               'kesch:cn', 'kesch:pn']
         self.valid_prog_environs = ['PrgEnv-cray']
-        self.tags = {'slurm', 'maintenance', 'ops'}
-        self.num_tasks = num_nodes
-        self.tags.add('production')
-
-        if num_nodes == 1:
-            self.tags.add('single-node')
-
+        self.tags = {'slurm', 'maintenance', 'ops',
+                     'production', 'single-node'}
         self.num_tasks_per_node = 1
-        self.descr = '%s on %s node(s)' % (name, self.num_tasks)
-        self.maintainers = ['RS', 'VK']
+        if self.current_system.name == 'kesch':
+            self.exclusive_access = True
+
+        self.maintainers = ['RS', 'VH']
 
 
+@rfm.simple_test
 class HostnameCheck(SlurmSimpleBaseCheck):
-    def __init__(self, num_nodes, **kwargs):
-        super().__init__('hostname', num_nodes, **kwargs)
+    def __init__(self):
+        super().__init__()
         self.executable = '/bin/hostname'
-        self.hostname_string = {
-            'kesch:cn': r'keschcn-\d{4}\b',
-            'kesch:pn': r'keschpn-\d{4}\b',
-            'daint:gpu': r'nid\d{5}\b',
-            'daint:mc': r'nid\d{5}\b',
-            'dom:gpu': r'nid\d{5}\b',
-            'dom:mc': r'nid\d{5}\b',
+        self.hostname_patt = {
+            'kesch:cn': r'^keschcn-\d{4}$',
+            'kesch:pn': r'^keschpn-\d{4}$',
+            'daint:gpu': r'^nid\d{5}$',
+            'daint:mc': r'^nid\d{5}$',
+            'dom:gpu': r'^nid\d{5}$',
+            'dom:mc': r'^nid\d{5}$',
         }
 
-    def setup(self, partition, environ, **job_opts):
-        super().setup(partition, environ, **job_opts)
-        num_matches = sn.count(sn.findall(
-            self.hostname_string[partition.fullname], self.stdout))
+    @rfm.run_before('sanity')
+    def set_sanity_patterns(self):
+        partname = self.current_partition.fullname
+        num_matches = sn.count(
+            sn.findall(self.hostname_patt[partname], self.stdout)
+        )
         self.sanity_patterns = sn.assert_eq(self.num_tasks, num_matches)
 
 
+@rfm.simple_test
 class EnvironmentVariableCheck(SlurmSimpleBaseCheck):
-    def __init__(self, num_nodes, **kwargs):
-        super().__init__('check_environment_variable_passing',
-                         num_nodes, **kwargs)
+    def __init__(self):
+        super().__init__()
+        self.num_tasks = 2
         self.valid_systems = ['daint:gpu', 'daint:mc',
                               'dom:gpu', 'dom:mc',
                               'kesch:cn', 'kesch:pn']
         self.executable = '/bin/echo'
         self.executable_opts = ['$MY_VAR']
         self.variables = {'MY_VAR': 'TEST123456!'}
+        self.tags.remove('single-node')
         num_matches = sn.count(sn.findall(r'TEST123456!', self.stdout))
-        self.sanity_patterns = sn.assert_eq(num_nodes, num_matches)
+        self.sanity_patterns = sn.assert_eq(self.num_tasks, num_matches)
 
 
+@rfm.simple_test
+class RequiredConstraintCheck(SlurmSimpleBaseCheck):
+    def __init__(self):
+        super().__init__()
+        self.valid_systems = ['daint:login', 'dom:login']
+        self.executable = 'srun'
+        self.executable_opts = ['hostname']
+        self.sanity_patterns = sn.assert_found(
+            r'error: You have to specify, at least, what sort of node you '
+            r'need: -C gpu for GPU enabled nodes, or -C mc for multicore '
+            r'nodes.', self.stderr)
+
+
+@rfm.simple_test
 class RequestLargeMemoryNodeCheck(SlurmSimpleBaseCheck):
-    def __init__(self, num_nodes, **kwargs):
-        super().__init__('request_large_memory_node',
-                         num_nodes, **kwargs)
+    def __init__(self):
+        super().__init__()
         self.valid_systems = ['daint:mc']
         self.executable = '/usr/bin/free'
         self.executable_opts = ['-h']
@@ -96,37 +99,35 @@ class RequestLargeMemoryNodeCheck(SlurmSimpleBaseCheck):
                                         self.stdout, 'mem', float)
         self.sanity_patterns = sn.assert_bounded(mem_obtained, 122.0, 128.0)
 
-    # we override setup function to pass additional
-    # options to Slurm
-    def setup(self, partition, environ, **job_opts):
-        super().setup(partition, environ, **job_opts)
+    @rfm.run_before('run')
+    def set_memory_limit(self):
         self.job.options += ['--mem=120000']
 
 
-class ConstraintRequestGPU(SlurmSimpleBaseCheck):
-    def __init__(self, num_nodes, **kwargs):
-        super().__init__('submit_job_to_GPU_node_with_constraint',
-                         num_nodes, **kwargs)
+@rfm.simple_test
+class DefaultRequestGPU(SlurmSimpleBaseCheck):
+    def __init__(self):
+        super().__init__()
         self.valid_systems = ['daint:gpu', 'dom:gpu', 'kesch:cn']
         self.executable = 'nvidia-smi'
         self.sanity_patterns = sn.assert_found(
             r'NVIDIA-SMI.*Driver Version.*', self.stdout)
 
 
-class ConstraintRequestGPUSetsGRES(SlurmSimpleBaseCheck):
-    def __init__(self, num_nodes, **kwargs):
-        super().__init__('submit_job_to_GPU_node_sets_GRES',
-                         num_nodes, **kwargs)
+@rfm.simple_test
+class DefaultRequestGPUSetsGRES(SlurmSimpleBaseCheck):
+    def __init__(self):
+        super().__init__()
         self.valid_systems = ['daint:gpu', 'dom:gpu']
         self.executable = 'scontrol show job ${SLURM_JOB_ID}'
-        self.sanity_patterns = sn.assert_found(r'.*Gres=.*gpu:1.*',
-                                               self.stdout)
+        self.sanity_patterns = sn.assert_found(
+            r'.*(TresPerNode|Gres)=.*gpu:1.*', self.stdout)
 
 
-class ConstraintRequestMC(SlurmSimpleBaseCheck):
-    def __init__(self, num_nodes, **kwargs):
-        super().__init__('submit_job_to_MC_node_with_constraint',
-                         num_nodes, **kwargs)
+@rfm.simple_test
+class DefaultRequestMC(SlurmSimpleBaseCheck):
+    def __init__(self):
+        super().__init__()
         self.valid_systems = ['daint:mc', 'dom:mc']
         # This is a basic test that should return the number of CPUs on the
         # system which, on a MC node should be 72
@@ -134,43 +135,32 @@ class ConstraintRequestMC(SlurmSimpleBaseCheck):
         self.sanity_patterns = sn.assert_found(r'72', self.stdout)
 
 
+@rfm.simple_test
 class ConstraintRequestCabinetGrouping(SlurmSimpleBaseCheck):
-    def __init__(self, num_nodes, **kwargs):
-        super().__init__('submit_job_using_c0_0_node_grouping',
-                         num_nodes, **kwargs)
+    def __init__(self):
+        super().__init__()
         self.valid_systems = ['daint:gpu', 'daint:mc',
                               'dom:gpu', 'dom:mc']
         self.executable = 'cat /proc/cray_xt/cname'
         self.sanity_patterns = sn.assert_found(r'c0-0.*', self.stdout)
 
-    # we override setup function to pass additional
-    # options to Slurm
-    def setup(self, partition, environ, **job_opts):
-        super().setup(partition, environ, **job_opts)
+    @rfm.run_before('run')
+    def set_slurm_constraint(self):
         self.job.options = ['--constraint=c0-0']
 
 
-class EatMemoryCheck(SlurmCompiledBaseCheck):
-    def __init__(self, num_nodes, **kwargs):
-        super().__init__('memory_overconsumption_kill', num_nodes, **kwargs)
+@rfm.simple_test
+class MemoryOverconsumptionCheck(SlurmCompiledBaseCheck):
+    def __init__(self):
+        super().__init__()
         self.time_limit = (0, 1, 0)
         self.sourcepath = 'eatmemory.c'
         self.tags.add('mem')
         self.executable_opts = ['4000M']
-        self.sanity_patterns = sn.assert_found(r'exceeded memory limit',
-                                               self.stderr)
+        self.sanity_patterns = sn.assert_found(
+            r'(exceeded memory limit)|(Out Of Memory)', self.stderr
+        )
 
-    def setup(self, partition, environ, **job_opts):
-        super().setup(partition, environ, **job_opts)
+    @rfm.run_before('run')
+    def set_memory_limit(self):
         self.job.options += ['--mem=2000']
-
-
-def _get_checks(**kwargs):
-    return [HostnameCheck(1, **kwargs),
-            RequestLargeMemoryNodeCheck(1, **kwargs),
-            EatMemoryCheck(1, **kwargs),
-            EnvironmentVariableCheck(2, **kwargs),
-            ConstraintRequestGPU(1, **kwargs),
-            ConstraintRequestMC(1, **kwargs),
-            ConstraintRequestCabinetGrouping(1, **kwargs),
-            ConstraintRequestGPUSetsGRES(1, **kwargs)]

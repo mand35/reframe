@@ -1,19 +1,18 @@
-import os
+import reframe as rfm
+import reframe.utility.sanity as sn
 
-from reframe.core.pipeline import RunOnlyRegressionTest
 from reframe.core.runtime import runtime
 
 
-class DefaultPrgEnvCheck(RunOnlyRegressionTest):
-    def __init__(self, **kwargs):
-        super().__init__('default_prgenv_check',
-                         os.path.dirname(__file__), **kwargs)
-
+@rfm.simple_test
+class DefaultPrgEnvCheck(rfm.RunOnlyRegressionTest):
+    def __init__(self):
+        super().__init__()
         self.descr = 'Ensure PrgEnv-cray is loaded by default'
         self.valid_prog_environs = ['PrgEnv-cray']
         self.valid_systems = ['daint:login', 'dom:login']
-        self.maintainers = ['VK', 'CB']
-        self.tags = {'production'}
+        self.maintainers = ['TM', 'CB']
+        self.tags = {'production', 'craype'}
 
     # We need to override setup, because otherwise environ will be loaded and
     # we could not check if PrgEnv-cray is the default environment. This,
@@ -37,25 +36,23 @@ class DefaultPrgEnvCheck(RunOnlyRegressionTest):
         pass
 
 
-class EnvironmentCheck(RunOnlyRegressionTest):
-    def __init__(self, **kwargs):
-        super().__init__('environ_load_check',
-                         os.path.dirname(__file__), **kwargs)
+@rfm.simple_test
+class EnvironmentCheck(rfm.RunOnlyRegressionTest):
+    def __init__(self):
+        super().__init__()
         self.descr = 'Ensure programming environment is loaded correctly'
-        self.valid_systems = ['daint:login', 'dom:login', 'kesch:login']
-        self.valid_prog_environs = ['PrgEnv-cray', 'PrgEnv-gnu', 'PrgEnv-pgi']
+        self.valid_systems = ['daint:login', 'dom:login']
+        self.valid_prog_environs = ['PrgEnv-cray', 'PrgEnv-gnu',
+                                    'PrgEnv-intel', 'PrgEnv-pgi']
 
-        if self.current_system.name != 'kesch':
-            # PrgEnv-intel is not present on Kesch
-            self.valid_prog_environs.append('PrgEnv-intel')
+        self.executable = 'module'
+        self.executable_opts = ['list', '-t']
+        self.sanity_patterns = sn.assert_found(self.env_module_patt,
+                                               self.stderr)
+        self.maintainers = ['TM', 'CB']
+        self.tags = {'production', 'craype'}
 
-        self.maintainers = ['VK', 'CB']
-        self.tags = {'production'}
-
-    def check_sanity(self):
-        return runtime().modules_system.is_module_loaded(
-            self.current_environ.name)
-
-
-def _get_checks(**kwargs):
-    return [DefaultPrgEnvCheck(**kwargs), EnvironmentCheck(**kwargs)]
+    @property
+    @sn.sanity_function
+    def env_module_patt(self):
+        return r'^%s' % self.current_environ.name

@@ -4,7 +4,6 @@
 
 
 class ReframeSettings:
-    reframe_module = None
     job_poll_intervals = [1, 2, 3]
     job_submit_timeout = 60
     checks_path = ['checks/']
@@ -31,20 +30,22 @@ class ReframeSettings:
                 # order to test different aspects of the framework.
                 'descr': 'Fake system for unit tests',
                 'hostnames': ['testsys'],
-                'prefix': '.rfm_testing/install',
+                'prefix': '.rfm_testing',
                 'resourcesdir': '.rfm_testing/resources',
+                'perflogdir': '.rfm_testing/perflogs',
+                'modules': ['foo/1.0'],
+                'variables': {'FOO_CMD': 'foobar'},
                 'partitions': {
                     'login': {
                         'scheduler': 'local',
-                        'modules': [],
-                        'access': [],
                         'resources': {},
                         'environs': ['PrgEnv-cray', 'PrgEnv-gnu', 'builtin-gcc'],
                         'descr': 'Login nodes'
                     },
                     'gpu': {
                         'scheduler': 'nativeslurm',
-                        'modules': [],
+                        'modules': ['foogpu'],
+                        'variables': {'FOO_GPU': 'yes'},
                         'resources': {
                             'gpu': ['--gres=gpu:{num_gpus_per_node}'],
                             'datawarp': [
@@ -57,12 +58,26 @@ class ReframeSettings:
                         'descr': 'GPU partition',
                     }
                 }
+            },
+            'sys0': {
+                # System used for dependency checking
+                'descr': 'System for test dependencies unit tests',
+                'hostnames': [r'sys\d+'],
+                'partitions': {
+                    'p0': {
+                        'scheduler': 'local',
+                        'environs': ['e0', 'e1'],
+                    },
+                    'p1': {
+                        'scheduler': 'local',
+                        'environs': ['e0', 'e1'],
+                    }
+                }
             }
         },
         'environments': {
             'testsys:login': {
                 'PrgEnv-gnu': {
-                    'type': 'ProgEnvironment',
                     'modules': ['PrgEnv-gnu'],
                     'cc': 'gcc',
                     'cxx': 'g++',
@@ -71,25 +86,27 @@ class ReframeSettings:
             },
             '*': {
                 'PrgEnv-gnu': {
-                    'type': 'ProgEnvironment',
                     'modules': ['PrgEnv-gnu'],
                 },
                 'PrgEnv-cray': {
-                    'type': 'ProgEnvironment',
                     'modules': ['PrgEnv-cray'],
                 },
                 'builtin': {
-                    'type': 'ProgEnvironment',
                     'cc':  'cc',
                     'cxx': '',
                     'ftn': '',
                 },
                 'builtin-gcc': {
-                    'type': 'ProgEnvironment',
                     'cc':  'gcc',
                     'cxx': 'g++',
                     'ftn': 'gfortran',
-                }
+                },
+                'e0': {
+                    'modules': ['m0'],
+                },
+                'e1': {
+                    'modules': ['m1'],
+                },
             }
         },
         'modes': {
@@ -137,7 +154,8 @@ class ReframeSettings:
                     '%(check_perf_var)s=%(check_perf_value)s|'
                     'ref=%(check_perf_ref)s '
                     '(l=%(check_perf_lower_thres)s, '
-                    'u=%(check_perf_upper_thres)s)'
+                    'u=%(check_perf_upper_thres)s)|'
+                    '%(check_perf_unit)s'
                 ),
                 'append': True
             }

@@ -1,38 +1,31 @@
-import os
+import reframe as rfm
 import reframe.utility.sanity as sn
 
-from reframe.core.pipeline import RegressionTest
 
+@rfm.required_version('>=2.14')
+@rfm.parameterized_test(['static'], ['dynamic'])
+class TrilinosTest(rfm.RegressionTest):
+    def __init__(self, linkage):
+        self.valid_systems = ['daint:gpu', 'daint:mc', 'dom:gpu', 'dom:mc',
+                              'tiger:gpu']
+        # NOTE: PrgEnv-cray in dynamic does not work because of CrayBug/809265
+        self.valid_prog_environs = ['PrgEnv-gnu', 'PrgEnv-intel']
+        if linkage == 'static':
+            self.valid_prog_environs += ['PrgEnv-cray']
 
-class TrilinosTest(RegressionTest):
-    def __init__(self, linkage, **kwargs):
-        super().__init__('trilinos_compile_run_%s' % linkage,
-                         os.path.dirname(__file__), **kwargs)
-
-        self.flags = ' -DHAVE_MPI -DEPETRA_MPI -lparmetis -%s ' % linkage
+        self.build_system = 'SingleSource'
+        self.build_system.ldflags = ['-%s' % linkage, '-lparmetis']
+        self.build_system.cppflags = ['-DHAVE_MPI', '-DEPETRA_MPI']
         self.prgenv_flags = {
-            'PrgEnv-cray': ' -homp -hstd=c++11 -hmsglevel_4 ',
-            'PrgEnv-gnu': ' -fopenmp -std=c++11 -w -fpermissive ',
-            'PrgEnv-intel': ' -qopenmp -w -std=c++11 ',
-            'PrgEnv-pgi': ' -mp -w '
+            'PrgEnv-cray': ['-homp', '-hstd=c++11', '-hmsglevel_4'],
+            'PrgEnv-gnu': ['-fopenmp', '-std=c++11', '-w', '-fpermissive'],
+            'PrgEnv-intel': ['-qopenmp', '-w', '-std=c++11'],
+            'PrgEnv-pgi': ['-mp', '-w']
         }
-        self.descr = 'Trilinos ' + linkage.capitalize()
         self.sourcepath = 'example_AmesosFactory_HB.cpp'
-        #self.sourcepath = 'trilinos_compile_run.cpp'
-        self.input_file = os.path.join(self.current_system.resourcesdir,
-                                       'Trilinos', 'trilinos_compile_run.rua')
-
-        self.executable_opts = self.input_file.split()
-        self.valid_systems = ['daint:gpu', 'daint:mc',
-                              'dom:gpu', 'dom:mc']
-
-        # Removed CRAY env in dynamic because of CrayBug/809265
-        if linkage == 'dynamic':
-            self.valid_prog_environs = ['PrgEnv-gnu', 'PrgEnv-intel']
-        elif linkage == 'static':
-            self.valid_prog_environs = ['PrgEnv-cray', 'PrgEnv-gnu',
-                                        'PrgEnv-intel']
-
+        self.pre_run = ['wget ftp://math.nist.gov/pub/MatrixMarket2/'
+                        'misc/hamm/add20.rua.gz', 'gunzip add20.rua.gz']
+        self.executable_opts = ['add20.rua']
         self.modules = ['cray-mpich', 'cray-hdf5-parallel',
                         'cray-tpsl', 'cray-trilinos']
         self.num_tasks = 2
@@ -41,22 +34,10 @@ class TrilinosTest(RegressionTest):
         self.sanity_patterns = sn.assert_found(r'After Amesos solution',
                                                self.stdout)
 
-        self.maintainers = ['WS', 'AJ']
-        self.tags = {'production'}
+        self.maintainers = ['AJ', 'CB']
+        self.tags = {'production', 'craype'}
 
-    def setup(self, partition, environ, **job_opts):
-        if environ.name == 'PrgEnv-intel':
-            # CrayBug/836679
-            self.modules += ['gcc/4.9.3']
-
-        super().setup(partition, environ, **job_opts)
-
-    def compile(self):
-        prgenv_flags = self.prgenv_flags[self.current_environ.name]
-        self.current_environ.cxxflags = self.flags + prgenv_flags
-        super().compile()
-
-
-def _get_checks(**kwargs):
-    return [TrilinosTest('dynamic', **kwargs),
-            TrilinosTest('static',  **kwargs)]
+    @rfm.run_before('compile')
+    def set_cxxflags(self):
+        flags = self.prgenv_flags[self.current_environ.name]
+        self.build_system.cxxflags = flags

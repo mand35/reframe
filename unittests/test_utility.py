@@ -1,4 +1,6 @@
 import os
+import pytest
+import random
 import shutil
 import sys
 import tempfile
@@ -26,9 +28,12 @@ class TestOSTools(unittest.TestCase):
     def test_command_timeout(self):
         try:
             os_ext.run_command('sleep 3', timeout=2)
-            self.fail('Expected timeout')
         except SpawnedProcessTimeout as e:
             self.assertEqual(e.timeout, 2)
+            # Try to get the string repr. of the exception: see bug #658
+            s = str(e)
+        else:
+            self.fail('expected timeout')
 
     def test_command_async(self):
         from datetime import datetime
@@ -72,6 +77,26 @@ class TestOSTools(unittest.TestCase):
                           src_path, dst_path)
 
         shutil.rmtree(dst_path)
+
+    def _test_rmtree(self, *args, **kwargs):
+        testdir = tempfile.mkdtemp()
+        with open(os.path.join(testdir, 'foo.txt'), 'w') as fp:
+            fp.write('hello\n')
+
+        os_ext.rmtree(testdir, *args, **kwargs)
+        self.assertFalse(os.path.exists(testdir))
+
+    def test_rmtree(self):
+        self._test_rmtree()
+
+    def test_rmtree_onerror(self):
+        self._test_rmtree(onerror=lambda *args: None)
+
+    def test_rmtree_error(self):
+        # Try to remove an inexistent directory
+        testdir = tempfile.mkdtemp()
+        os.rmdir(testdir)
+        self.assertRaises(OSError, os_ext.rmtree, testdir)
 
     def test_inpath(self):
         self.assertTrue(os_ext.inpath('/foo/bin', '/bin:/foo/bin:/usr/bin'))
@@ -149,6 +174,13 @@ class TestOSTools(unittest.TestCase):
         self.assertTrue(os_ext.is_url(repo_https))
         self.assertFalse(os_ext.is_url(repo_ssh))
 
+    def test_git_repo_hash(self):
+        # A git branch hash consists of 8(short) or 40 characters.
+        assert len(os_ext.git_repo_hash()) == 8
+        assert len(os_ext.git_repo_hash(short=False)) == 40
+        assert os_ext.git_repo_hash(branch='invalid') is None
+        assert os_ext.git_repo_hash(branch='') is None
+
     def test_git_repo_exists(self):
         self.assertTrue(os_ext.git_repo_exists(
             'https://github.com/eth-cscs/reframe.git', timeout=3))
@@ -166,6 +198,50 @@ class TestOSTools(unittest.TestCase):
 
         # Try to remove a non-existent file
         os_ext.force_remove_file(fp.name)
+
+    def test_expandvars_dollar(self):
+        text = 'Hello, $(echo World)'
+        self.assertEqual('Hello, World', os_ext.expandvars(text))
+
+        # Test nested expansion
+        text = '$(echo Hello, $(echo World))'
+        self.assertEqual('Hello, World', os_ext.expandvars(text))
+
+    def test_expandvars_backticks(self):
+        text = 'Hello, `echo World`'
+        self.assertEqual('Hello, World', os_ext.expandvars(text))
+
+        # Test nested expansion
+        text = '`echo Hello, `echo World``'
+        self.assertEqual('Hello, World', os_ext.expandvars(text))
+
+    def test_expandvars_mixed_syntax(self):
+        text = '`echo Hello, $(echo World)`'
+        self.assertEqual('Hello, World', os_ext.expandvars(text))
+
+        text = '$(echo Hello, `echo World`)'
+        self.assertEqual('Hello, World', os_ext.expandvars(text))
+
+    def test_expandvars_error(self):
+        text = 'Hello, $(foo)'
+        with self.assertRaises(SpawnedProcessError):
+            os_ext.expandvars(text)
+
+    def test_strange_syntax(self):
+        text = 'Hello, $(foo`'
+        self.assertEqual('Hello, $(foo`', os_ext.expandvars(text))
+
+        text = 'Hello, `foo)'
+        self.assertEqual('Hello, `foo)', os_ext.expandvars(text))
+
+    def test_expandvars_nocmd(self):
+        os.environ['FOO'] = 'World'
+        text = 'Hello, $FOO'
+        self.assertEqual('Hello, World', os_ext.expandvars(text))
+
+        text = 'Hello, ${FOO}'
+        self.assertEqual('Hello, World', os_ext.expandvars(text))
+        del os.environ['FOO']
 
 
 class TestCopyTree(unittest.TestCase):
@@ -194,7 +270,7 @@ class TestCopyTree(unittest.TestCase):
         open(os.path.join(self.prefix, 'foo.txt'), 'w').close()
 
     def verify_target_directory(self, file_links=[]):
-        """Verify the directory structure"""
+        '''Verify the directory structure'''
         self.assertTrue(
             os.path.exists(os.path.join(self.target, 'bar', 'bar.txt')))
         self.assertTrue(
@@ -675,14 +751,14 @@ class TestScopedDict(unittest.TestCase):
         )
 
     def test_update(self):
-        scoped_dict = reframe.utility.ScopedDict({
+        scoped_dict = util.ScopedDict({
             'a': {'k1': 1, 'k2': 2},
             'a:b': {'k1': 3, 'k3': 4},
             'a:b:c': {'k2': 5, 'k3': 6},
             '*': {'k1': 7, 'k3': 9, 'k4': 10}
         })
 
-        scoped_dict_alt = reframe.utility.ScopedDict({'a': {'k1': 3, 'k2': 5}})
+        scoped_dict_alt = util.ScopedDict({'a': {'k1': 3, 'k2': 5}})
         scoped_dict_alt.update({
             'a': {'k1': 1, 'k2': 2},
             'a:b': {'k1': 3, 'k3': 4},
@@ -690,3 +766,241 @@ class TestScopedDict(unittest.TestCase):
             '*': {'k1': 7, 'k3': 9, 'k4': 10}
         })
         self.assertEqual(scoped_dict, scoped_dict_alt)
+
+
+class TestReadOnlyViews(unittest.TestCase):
+    def test_sequence(self):
+        l = util.SequenceView([1, 2, 2])
+        self.assertEqual(1, l[0])
+        self.assertEqual(3, len(l))
+        self.assertIn(2, l)
+        self.assertEqual(l, [1, 2, 2])
+        self.assertEqual(l, util.SequenceView([1, 2, 2]))
+        self.assertEqual(list(reversed(l)), [2, 2, 1])
+        self.assertEqual(1, l.index(2))
+        self.assertEqual(2, l.count(2))
+        self.assertEqual(str(l), str([1, 2, 2]))
+
+        # Assert immutability
+        m = l + [3, 4]
+        self.assertEqual([1, 2, 2, 3, 4], m)
+        self.assertIsInstance(m, util.SequenceView)
+
+        m = l
+        l += [3, 4]
+        self.assertIsNot(m, l)
+        self.assertEqual([1, 2, 2], m)
+        self.assertEqual([1, 2, 2, 3, 4], l)
+        self.assertIsInstance(l, util.SequenceView)
+
+        with self.assertRaises(TypeError):
+            l[1] = 3
+
+        with self.assertRaises(TypeError):
+            l[1:2] = [3]
+
+        with self.assertRaises(TypeError):
+            l *= 3
+
+        with self.assertRaises(TypeError):
+            del l[:1]
+
+        with self.assertRaises(AttributeError):
+            l.append(3)
+
+        with self.assertRaises(AttributeError):
+            l.clear()
+
+        with self.assertRaises(AttributeError):
+            s = l.copy()
+
+        with self.assertRaises(AttributeError):
+            l.extend([3, 4])
+
+        with self.assertRaises(AttributeError):
+            l.insert(1, 4)
+
+        with self.assertRaises(AttributeError):
+            l.pop()
+
+        with self.assertRaises(AttributeError):
+            l.remove(2)
+
+        with self.assertRaises(AttributeError):
+            l.reverse()
+
+    def test_mapping(self):
+        d = util.MappingView({'a': 1, 'b': 2})
+        self.assertEqual(1, d['a'])
+        self.assertEqual(2, len(d))
+        self.assertEqual({'a': 1, 'b': 2}, dict(d))
+        self.assertIn('b', d)
+        self.assertEqual({'a', 'b'}, set(d.keys()))
+        self.assertEqual({1, 2}, set(d.values()))
+        self.assertEqual({('a', 1), ('b', 2)}, set(d.items()))
+        self.assertEqual(2, d.get('b'))
+        self.assertEqual(3, d.get('c', 3))
+        self.assertEqual({'a': 1, 'b': 2}, d)
+        self.assertEqual(d, util.MappingView({'b': 2, 'a': 1}))
+        self.assertEqual(str(d), str({'a': 1, 'b': 2}))
+        self.assertNotEqual({'a': 1, 'b': 2, 'c': 3}, d)
+
+        # Assert immutability
+        with self.assertRaises(TypeError):
+            d['c'] = 3
+
+        with self.assertRaises(TypeError):
+            del d['b']
+
+        with self.assertRaises(AttributeError):
+            d.pop('a')
+
+        with self.assertRaises(AttributeError):
+            d.popitem()
+
+        with self.assertRaises(AttributeError):
+            d.clear()
+
+        with self.assertRaises(AttributeError):
+            d.update({'a': 4, 'b': 5})
+
+        with self.assertRaises(AttributeError):
+            d.setdefault('c', 3)
+
+
+class TestOrderedSet(unittest.TestCase):
+    def setUp(self):
+        # Initialize all tests with the same seed
+        random.seed(1)
+
+    def test_construction(self):
+        l = list(range(10))
+        random.shuffle(l)
+
+        s = util.OrderedSet(l + l)
+        assert len(s) == 10
+        for i in range(10):
+            assert i in s
+
+        assert list(s) == l
+
+    def test_construction_empty(self):
+        s = util.OrderedSet()
+        assert s == set()
+        assert set() == s
+
+    def test_str(self):
+        l = list(range(10))
+        random.shuffle(l)
+
+        s = util.OrderedSet(l)
+        assert str(s) == str(l).replace('[', '{').replace(']', '}')
+
+        s = util.OrderedSet()
+        assert str(s) == type(s).__name__ + '()'
+
+    def test_construction_error(self):
+        with pytest.raises(TypeError):
+            s = util.OrderedSet(2)
+
+        with pytest.raises(TypeError):
+            s = util.OrderedSet(1, 2, 3)
+
+    def test_operators(self):
+        s0 = util.OrderedSet(range(10))
+        s1 = util.OrderedSet(range(20))
+        s2 = util.OrderedSet(range(10, 20))
+
+        assert s0 == set(range(10))
+        assert set(range(10)) == s0
+        assert s0 != s1
+        assert s1 != s0
+
+        assert s0 < s1
+        assert s0 <= s1
+        assert s0 <= s0
+        assert s1 > s0
+        assert s1 >= s0
+        assert s1 >= s1
+
+        assert s0.issubset(s1)
+        assert s1.issuperset(s0)
+
+        assert (s0 & s1) == s0
+        assert (s0 & s2) == set()
+        assert (s0 | s2) == s1
+
+        assert (s1 - s0) == s2
+        assert (s2 - s0) == s2
+
+        assert (s0 ^ s1) == s2
+
+        assert s0.isdisjoint(s2)
+        assert not s0.isdisjoint(s1)
+        assert s0.symmetric_difference(s1) == s2
+
+    def test_union(self):
+        l0 = list(range(10))
+        l1 = list(range(10, 20))
+        l2 = list(range(20, 30))
+        random.shuffle(l0)
+        random.shuffle(l1)
+        random.shuffle(l2)
+
+        s0 = util.OrderedSet(l0)
+        s1 = util.OrderedSet(l1)
+        s2 = util.OrderedSet(l2)
+
+        assert list(s0.union(s1, s2)) == l0 + l1 + l2
+
+    def test_intersection(self):
+        l0 = list(range(10, 40))
+        l1 = list(range(20, 40))
+        l2 = list(range(20, 30))
+        random.shuffle(l0)
+        random.shuffle(l1)
+        random.shuffle(l2)
+
+        s0 = util.OrderedSet(l0)
+        s1 = util.OrderedSet(l1)
+        s2 = util.OrderedSet(l2)
+
+        assert s0.intersection(s1, s2) == s2
+
+    def test_difference(self):
+        l0 = list(range(10, 40))
+        l1 = list(range(20, 40))
+        l2 = list(range(20, 30))
+        random.shuffle(l0)
+        random.shuffle(l1)
+        random.shuffle(l2)
+
+        s0 = util.OrderedSet(l0)
+        s1 = util.OrderedSet(l1)
+        s2 = util.OrderedSet(l2)
+
+        assert s0.difference(s1, s2) == set(range(10, 20))
+
+    def test_reversed(self):
+        l = list(range(10))
+        random.shuffle(l)
+
+        s = util.OrderedSet(l)
+        assert list(reversed(s)) == list(reversed(l))
+
+    def test_concat_files(self):
+        with tempfile.TemporaryDirectory(dir='unittests') as tmpdir:
+            with os_ext.change_dir(tmpdir):
+                file1 = 'in1.txt'
+                file2 = 'in2.txt'
+                concat_file = 'out.txt'
+                with open(file1, 'w') as f1:
+                    f1.write('Hello1')
+
+                with open(file2, 'w') as f2:
+                    f2.write('Hello2')
+
+                os_ext.concat_files(concat_file, file1, file2, overwrite=True)
+                with open(concat_file) as cf:
+                    out = cf.read()
+                    assert out == 'Hello1\nHello2\n'

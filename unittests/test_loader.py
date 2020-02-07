@@ -32,11 +32,11 @@ class TestRegressionCheckLoader(unittest.TestCase):
     def test_load_recursive(self):
         checks = self.loader.load_from_dir('unittests/resources/checks',
                                            recurse=True)
-        self.assertEqual(11, len(checks))
+        self.assertEqual(12, len(checks))
 
     def test_load_all(self):
         checks = self.loader_with_path.load_all()
-        self.assertEqual(10, len(checks))
+        self.assertEqual(11, len(checks))
 
     def test_load_all_with_prefix(self):
         checks = self.loader_with_prefix.load_all()
@@ -46,10 +46,6 @@ class TestRegressionCheckLoader(unittest.TestCase):
         checks = self.loader.load_from_file(
             'unittests/resources/checks_unlisted/good.py')
         self.assertEqual(13, len(checks))
-
-    def test_load_mixed_syntax(self):
-        self.assertRaises(RegressionTestLoadError, self.loader.load_from_file,
-                          'unittests/resources/checks_unlisted/mixed.py')
 
     def test_conflicted_checks(self):
         self.loader_with_path._ignore_conflicts = False
@@ -63,3 +59,8 @@ class TestRegressionCheckLoader(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.loader.load_from_file('unittests/resources/checks_unlisted/'
                                        'no_required_version.py')
+
+    def test_load_bad_init(self):
+        tests = self.loader.load_from_file(
+            'unittests/resources/checks_unlisted/bad_init_check.py')
+        self.assertEqual(0, len(tests))

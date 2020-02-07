@@ -4,10 +4,10 @@ import reframe.utility.sanity as sn
 
 class BaseMatrixVectorTest(rfm.RegressionTest):
     def __init__(self, test_version):
-        super().__init__()
         self.descr = '%s matrix-vector multiplication' % test_version
         self.valid_systems = ['*']
         self.valid_prog_environs = ['*']
+        self.build_system = 'SingleSource'
         self.prgenv_flags = None
 
         matrix_dim = 1024
@@ -26,11 +26,11 @@ class BaseMatrixVectorTest(rfm.RegressionTest):
         self.maintainers = ['you-can-type-your-email-here']
         self.tags = {'tutorial'}
 
-    def compile(self):
+    @rfm.run_before('compile')
+    def setflags(self):
         if self.prgenv_flags is not None:
-            self.current_environ.cflags = self.prgenv_flags[self.current_environ.name]
-
-        super().compile()
+            env = self.current_environ.name
+            self.build_system.cflags = self.prgenv_flags[env]
 
 
 @rfm.simple_test
@@ -48,10 +48,10 @@ class OpenMPTest(BaseMatrixVectorTest):
         self.valid_prog_environs = ['PrgEnv-cray', 'PrgEnv-gnu',
                                     'PrgEnv-intel', 'PrgEnv-pgi']
         self.prgenv_flags = {
-            'PrgEnv-cray':  '-homp',
-            'PrgEnv-gnu':   '-fopenmp',
-            'PrgEnv-intel': '-openmp',
-            'PrgEnv-pgi':   '-mp'
+            'PrgEnv-cray':  ['-homp'],
+            'PrgEnv-gnu':   ['-fopenmp'],
+            'PrgEnv-intel': ['-openmp'],
+            'PrgEnv-pgi':   ['-mp']
         }
         self.variables = {
             'OMP_NUM_THREADS': '4'
@@ -67,10 +67,10 @@ class MPITest(BaseMatrixVectorTest):
                                     'PrgEnv-intel', 'PrgEnv-pgi']
         self.sourcepath = 'example_matrix_vector_multiplication_mpi_openmp.c'
         self.prgenv_flags = {
-            'PrgEnv-cray':  '-homp',
-            'PrgEnv-gnu':   '-fopenmp',
-            'PrgEnv-intel': '-openmp',
-            'PrgEnv-pgi':   '-mp'
+            'PrgEnv-cray':  ['-homp'],
+            'PrgEnv-gnu':   ['-fopenmp'],
+            'PrgEnv-intel': ['-openmp'],
+            'PrgEnv-pgi':   ['-mp']
         }
         self.num_tasks = 8
         self.num_tasks_per_node = 2
@@ -90,8 +90,8 @@ class OpenACCTest(BaseMatrixVectorTest):
         self.modules = ['craype-accel-nvidia60']
         self.num_gpus_per_node = 1
         self.prgenv_flags = {
-            'PrgEnv-cray': '-hacc -hnoomp',
-            'PrgEnv-pgi':  '-acc -ta=tesla:cc60'
+            'PrgEnv-cray': ['-hacc', '-hnoomp'],
+            'PrgEnv-pgi':  ['-acc', '-ta=tesla:cc60']
         }
 
 

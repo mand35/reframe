@@ -41,7 +41,7 @@ checked_exec()
 
 run_tutorial_checks()
 {
-    cmd="./bin/reframe -C tutorial/config/settings.py --exec-policy=async \
+    cmd="./bin/reframe -C tutorial/config/settings.py \
 --save-log-files -r -t tutorial $@"
     echo "Running tutorial checks with \`$cmd'"
     checked_exec $cmd
@@ -49,8 +49,8 @@ run_tutorial_checks()
 
 run_user_checks()
 {
-    cmd="./bin/reframe -C config/cscs.py --exec-policy=async --save-log-files \
--r -t production $@"
+    cmd="./bin/reframe -C config/cscs.py --save-log-files \
+-r --flex-alloc-nodes=2 -t production|benchmark $@"
     echo "Running user checks with \`$cmd'"
     checked_exec $cmd
 }
@@ -160,10 +160,7 @@ elif [ $CI_TUTORIAL -eq 1 ]; then
                        grep -e '^tutorial/(?!config/).*\.py') )
 
     if [ ${#tutorialchecks[@]} -ne 0 ]; then
-        tutorialchecks_path=""
-        for check in ${tutorialchecks[@]}; do
-            tutorialchecks_path="${tutorialchecks_path} -c ${check}"
-        done
+        tutorialchecks_path="-c $(IFS=: eval 'echo "${tutorialchecks[*]}"')"
 
         echo "========================"
         echo "Modified tutorial checks"
@@ -180,7 +177,7 @@ else
     echo "Running unit tests"
     echo "=================="
 
-    checked_exec ./test_reframe.py --rfm-user-config=config/cscs.py
+    checked_exec ./test_reframe.py --rfm-user-config=config/cscs-ci.py
 
     echo "==================================="
     echo "Running unit tests with PBS backend"
@@ -193,22 +190,11 @@ else
         export PATH=$PATH_save
     fi
 
-
-    # FIXME: Do not run modified checks on Daint during the PE upgrade
-    if [[ $(hostname) =~ daint ]]; then
-        exit $CI_EXITCODE
-    fi
-
-
     # Find modified or added user checks
     userchecks=( $(git diff origin/master...HEAD --name-only --oneline --no-merges | \
                    grep -e '^cscs-checks/.*\.py') )
-
     if [ ${#userchecks[@]} -ne 0 ]; then
-        userchecks_path=""
-        for check in ${userchecks[@]}; do
-            userchecks_path="${userchecks_path} -c ${check}"
-        done
+        userchecks_path="-c $(IFS=: eval 'echo "${userchecks[*]}"')"
 
         echo "===================="
         echo "Modified user checks"

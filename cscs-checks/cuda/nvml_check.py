@@ -1,30 +1,44 @@
 import os
 
+import reframe as rfm
 import reframe.utility.sanity as sn
-from reframe.core.pipeline import RegressionTest
 
 
-class NvmlCheck(RegressionTest):
-    def __init__(self, **kwargs):
-        super().__init__('nvml_check', os.path.dirname(__file__), **kwargs)
+@rfm.simple_test
+class NvmlCheck(rfm.RegressionTest):
+    ''' This test checks gpu modes with nvml:
+    * COMPUTE MODE:
+    result = nvmlDeviceGetComputeMode(device, &compute_mode);
+
+    * GPU OPERATION MODE (not supported since K20s, keeping as reminder):
+    result = nvmlDeviceGetGpuOperationMode(device, &gom_mode_current,
+                                                   &gom_mode_pending);
+    NVML_GOM_ALL_ON Everything is enabled and running at full speed.
+    NVML_GOM_COMPUTE Designed for running only compute tasks.
+                     Graphics operations < are not allowed.
+    NVML_GOM_LOW_DP Designed for running graphics applications that do not
+                    require < high bandwidth double precision.
+    '''
+
+    def __init__(self):
+        super().__init__()
         self.descr = 'check GPU compute mode'
-        self.valid_systems = ['daint:gpu', 'dom:gpu']
+        self.valid_systems = ['daint:gpu', 'dom:gpu', 'tiger:gpu']
         self.valid_prog_environs = ['PrgEnv-gnu']
-        self.sourcesdir = os.path.join(self.current_system.resourcesdir,
-                                       'CUDA', 'nvml')
-        self.sourcepath = 'nvml.c'
-        self.sanity_patterns = sn.assert_found(
-            r"compute\s+mode\s+'Exclusive Process'", self.stdout)
-        self.modules = ['cudatoolkit']
+        self.modules = ['craype-accel-nvidia60']
+        self.build_system = 'SingleSource'
+        self.sourcepath = 'example.c'
+        self.prebuild_cmd = [
+            'cp $CUDATOOLKIT_HOME/nvml/example/example.c .',
+            'patch -i ./nvml_example.patch'
+        ]
+        self.build_system.ldflags = ['-lnvidia-ml']
+        if self.current_system.name in {'dom', 'daint'}:
+            regex = (r"\s+Changing device.s compute mode from "
+                     r"'Exclusive Process' to ")
+        else:
+            regex = r"\s+Changing device.s compute mode from 'Default' to "
 
-        self.maintainers = ['AJ', 'VK']
-        self.tags = {'production'}
-
-    def compile(self):
-        # Set cc flags
-        self.current_environ.cflags = '-lnvidia-ml'
-        super().compile()
-
-
-def _get_checks(**kwargs):
-    return [NvmlCheck(**kwargs)]
+        self.sanity_patterns = sn.assert_found(regex, self.stdout)
+        self.maintainers = ['AJ', 'SK']
+        self.tags = {'production', 'craype', 'external-resources'}

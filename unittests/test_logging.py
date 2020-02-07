@@ -2,13 +2,32 @@ import logging
 import logging.handlers
 import os
 import sys
+import re
 import tempfile
+import time
 import unittest
 from datetime import datetime
 
+import reframe as rfm
 import reframe.core.logging as rlog
 from reframe.core.exceptions import ConfigError, ReframeError
-from reframe.core.pipeline import RegressionTest
+from reframe.core.launchers.registry import getlauncher
+from reframe.core.schedulers import Job
+from reframe.core.schedulers.registry import getscheduler
+
+
+class _FakeCheck(rfm.RegressionTest):
+    pass
+
+
+def _setup_fake_check():
+    # A bit hacky, but we don't want to run a full test every time
+    test = _FakeCheck()
+    test._job = Job.create(getscheduler('local')(),
+                           getlauncher('local')(),
+                           'fakejob')
+    test.job._completion_time = time.time()
+    return test
 
 
 class TestLogger(unittest.TestCase):
@@ -18,7 +37,7 @@ class TestLogger(unittest.TestCase):
 
         self.logger  = rlog.Logger('reframe')
         self.handler = logging.handlers.RotatingFileHandler(self.logfile)
-        self.formatter = logging.Formatter(
+        self.formatter = rlog.RFC3339Formatter(
             fmt='[%(asctime)s] %(levelname)s: %(check_name)s: %(message)s',
             datefmt='%FT%T')
 
@@ -29,16 +48,16 @@ class TestLogger(unittest.TestCase):
         self.logger_without_check = rlog.LoggerAdapter(self.logger)
 
         # Logger adapter with an associated check
-        self.logger_with_check = rlog.LoggerAdapter(
-            self.logger, RegressionTest('random_check', '.'))
+        self.logger_with_check = rlog.LoggerAdapter(self.logger,
+                                                    _setup_fake_check())
 
     def tearDown(self):
         os.remove(self.logfile)
 
-    def found_in_logfile(self, string):
+    def found_in_logfile(self, pattern):
         found = False
-        with open(self.logfile, 'rt') as f:
-            found = string in f.read()
+        with open(self.logfile, 'rt') as fp:
+            found = re.search(pattern, fp.read()) is not None
 
         return found
 
@@ -62,7 +81,7 @@ class TestLogger(unittest.TestCase):
         self.assertTrue(os.path.exists(self.logfile))
         self.assertTrue(self.found_in_logfile('info'))
         self.assertTrue(self.found_in_logfile('verbose'))
-        self.assertTrue(self.found_in_logfile('random_check'))
+        self.assertTrue(self.found_in_logfile('_FakeCheck'))
 
     def test_handler_types(self):
         self.assertTrue(issubclass(logging.Handler, rlog.Handler))
@@ -94,6 +113,26 @@ class TestLogger(unittest.TestCase):
         self.assertFalse(self.found_in_logfile('bar'))
         self.assertTrue(self.found_in_logfile('foo'))
 
+    def test_rfc3339_timezone_extension(self):
+        self.formatter = rlog.RFC3339Formatter(
+            fmt=('[%(asctime)s] %(levelname)s: %(check_name)s: '
+                 'ct:%(check_job_completion_time)s: %(message)s'),
+            datefmt='%FT%T%:z')
+        self.handler.setFormatter(self.formatter)
+        self.logger_with_check.info('foo')
+        self.logger_without_check.info('foo')
+        assert not self.found_in_logfile(r'%%:z')
+        assert self.found_in_logfile(r'\[.+(\+|-)\d\d:\d\d\]')
+        assert self.found_in_logfile(r'ct:.+(\+|-)\d\d:\d\d')
+
+    def test_rfc3339_timezone_wrong_directive(self):
+        self.formatter = rlog.RFC3339Formatter(
+            fmt='[%(asctime)s] %(levelname)s: %(check_name)s: %(message)s',
+            datefmt='%FT%T:z')
+        self.handler.setFormatter(self.formatter)
+        self.logger_without_check.info('foo')
+        assert self.found_in_logfile(':z')
+
 
 class TestLoggingConfiguration(unittest.TestCase):
     def setUp(self):
@@ -113,7 +152,7 @@ class TestLoggingConfiguration(unittest.TestCase):
                 }
             ]
         }
-        self.check = RegressionTest('random_check', '.')
+        self.check = _FakeCheck()
 
     def tearDown(self):
         if os.path.exists(self.logfile):
@@ -296,11 +335,12 @@ class TestLoggingConfiguration(unittest.TestCase):
             'level': 'INFO',
             'handlers': [
                 {'type': 'stream', 'name': 'stderr'},
-                {'type': 'file', 'name': self.logfile}
+                {'type': 'file', 'name': self.logfile},
+                {'type': 'syslog', 'address': '/dev/log'}
             ],
         }
         rlog.configure_logging(self.logging_config)
-        self.assertEqual(len(rlog.getlogger().logger.handlers), 2)
+        self.assertEqual(len(rlog.getlogger().logger.handlers), 3)
 
     def test_file_handler_timestamp(self):
         self.logging_config['handlers'][0]['timestamp'] = '%F'
@@ -326,6 +366,46 @@ class TestLoggingConfiguration(unittest.TestCase):
             'handlers': [
                 {'type': 'stream', 'name': 'foo'},
             ],
+        }
+        self.assertRaises(ConfigError, rlog.configure_logging,
+                          self.logging_config)
+
+    def test_syslog_handler(self):
+        import platform
+
+        if platform.system() == 'Linux':
+            addr = '/dev/log'
+        elif platform.system() == 'Darwin':
+            addr = '/dev/run/syslog'
+        else:
+            self.skipTest()
+
+        self.logging_config = {
+            'level': 'INFO',
+            'handlers': [{'type': 'syslog', 'address': addr}]
+        }
+        rlog.getlogger().info('foo')
+
+    def test_syslog_handler_no_address(self):
+        self.logging_config = {
+            'level': 'INFO',
+            'handlers': [{'type': 'syslog'}]
+        }
+        self.assertRaises(ConfigError, rlog.configure_logging,
+                          self.logging_config)
+
+    def test_syslog_handler_unknown_facility(self):
+        self.logging_config = {
+            'level': 'INFO',
+            'handlers': [{'type': 'syslog', 'facility': 'foo'}]
+        }
+        self.assertRaises(ConfigError, rlog.configure_logging,
+                          self.logging_config)
+
+    def test_syslog_handler_unknown_socktype(self):
+        self.logging_config = {
+            'level': 'INFO',
+            'handlers': [{'type': 'syslog', 'socktype': 'foo'}]
         }
         self.assertRaises(ConfigError, rlog.configure_logging,
                           self.logging_config)
@@ -358,11 +438,10 @@ class TestLoggingConfiguration(unittest.TestCase):
             rlog.getlogger().error('error from context')
 
         rlog.getlogger().error('error outside context')
-
-        self.assertTrue(
-            self.found_in_logfile('random_check: error from context'))
-        self.assertTrue(
-            self.found_in_logfile('reframe: error outside context'))
+        self.assertTrue(self.found_in_logfile(
+            '_FakeCheck: %s: error from context' % sys.argv[0]))
+        self.assertTrue(self.found_in_logfile(
+            'reframe: %s: error outside context' % sys.argv[0]))
 
     def test_logging_context_error(self):
         rlog.configure_logging(self.logging_config)

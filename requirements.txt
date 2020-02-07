@@ -1,2 +1,4 @@
+jsonschema
 pytest>=3.5.0
 coverage
+setuptools

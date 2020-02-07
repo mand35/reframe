@@ -3,8 +3,9 @@
 def dirPrefix = 'reframe-ci'
 def loginBash = '#!/bin/bash -l'
 def bashScript = 'ci-scripts/ci-runner.bash'
-def machinesList = ['daint', 'dom', 'kesch', 'monch']
+def machinesList = params.machines.split()
 def machinesToRun = machinesList
+def runTests = true
 def uniqueID
 
 stage('Initialization') {
@@ -15,7 +16,7 @@ stage('Initialization') {
             echo sh(script: 'env|sort', returnStdout: true)
 
             def githubComment = env.ghprbCommentBody
-            if (githubComment == 'null') {
+            if (githubComment == 'null' || !githubComment.trim().startsWith('@jenkins-cscs')) {
                 machinesToRun = machinesList
                 currentBuild.result = 'SUCCESS'
                 return
@@ -34,6 +35,11 @@ stage('Initialization') {
             }
             if (splittedComment[2] == 'all') {
                 machinesToRun = machinesList
+                currentBuild.result = 'SUCCESS'
+                return
+            }
+            else if (splittedComment[2] == 'none') {
+                runTests = false
                 currentBuild.result = 'SUCCESS'
                 return
             }
@@ -66,6 +72,11 @@ stage('Initialization') {
     }
 }
 
+if (!runTests) {
+    println "Won't execute any test (${currentBuild.result}). Exiting..."
+    return
+}
+
 if (currentBuild.result != 'SUCCESS') {
     println "Initialization failed (${currentBuild.result}). Exiting..."
     return
@@ -81,15 +92,9 @@ stage('Unittest') {
                                  script: """${loginBash}
                                             echo \$SCRATCH""").trim()
                 def reframeDir = "${scratch}/${dirPrefix}-${machineName}-${uniqueID}"
-                def moduleDefinition = ''
-                if (machineName == 'leone') {
-                    moduleDefinition = '''module() { eval `/usr/bin/modulecmd bash $*`; }
-                                          export -f module'''
-                }
                 dir(reframeDir) {
                     checkout scm
                     sh("""${loginBash}
-                          ${moduleDefinition}
                           bash ${reframeDir}/${bashScript} -f ${reframeDir} -i ''""")
                 }
             }

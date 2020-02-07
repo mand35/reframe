@@ -43,6 +43,11 @@ The following example shows a minimal configuration for the `Piz Daint <https://
                        'access':  ['--constraint=gpu'],
                        'environs': ['PrgEnv-cray', 'PrgEnv-gnu',
                                     'PrgEnv-intel', 'PrgEnv-pgi'],
+                       'container_platforms': {
+                            'Singularity': {
+                                'modules': ['Singularity']
+                            }
+                        },
                        'descr': 'Hybrid nodes (Haswell/P100)',
                        'max_jobs': 100
                    },
@@ -53,6 +58,11 @@ The following example shows a minimal configuration for the `Piz Daint <https://
                        'access':  ['--constraint=mc'],
                        'environs': ['PrgEnv-cray', 'PrgEnv-gnu',
                                     'PrgEnv-intel', 'PrgEnv-pgi'],
+                       'container_platforms': {
+                            'Singularity': {
+                                'modules': ['Singularity']
+                            }
+                        },
                        'descr': 'Multicore nodes (Broadwell)',
                        'max_jobs': 100
                    }
@@ -63,22 +73,18 @@ The following example shows a minimal configuration for the `Piz Daint <https://
        'environments': {
            '*': {
                'PrgEnv-cray': {
-                   'type': 'ProgEnvironment',
                    'modules': ['PrgEnv-cray'],
                },
 
                'PrgEnv-gnu': {
-                   'type': 'ProgEnvironment',
                    'modules': ['PrgEnv-gnu'],
                },
 
                'PrgEnv-intel': {
-                   'type': 'ProgEnvironment',
                    'modules': ['PrgEnv-intel'],
                },
 
                'PrgEnv-pgi': {
-                   'type': 'ProgEnvironment',
                    'modules': ['PrgEnv-pgi'],
                }
            }
@@ -93,26 +99,35 @@ Each system is a key/value pair, with the key being the name of the system and t
 The valid attributes of a system are the following:
 
 * ``descr``: A detailed description of the system (default is the system name).
-* ``hostnames``: This is a list of hostname patterns that will be used by ReFrame when it tries to `auto-detect <#system-auto-detection>`__ the current system (default ``[]``).
-* ``modules_system``: The modules system that should be used for loading environment modules on this system (default :class:`None`).
+* ``hostnames``: This is a list of hostname patterns according to the `Python Regular Expression Syntax <https://docs.python.org/3/library/re.html#regular-expression-syntax>`__ , which will be used by ReFrame when it tries to `auto-detect <#system-auto-detection>`__ the current system (default ``[]``).
+* ``modules_system``: *[new in 2.8]* The modules system that should be used for loading environment modules on this system (default :class:`None`).
   Three types of modules systems are currently supported:
 
-  - ``tmod``: The classic Tcl implementation of the `environment modules <https://sourceforge.net/projects/modules/files/Modules/modules-3.2.10/>`__.
-  - ``tmod4``: The version 4 of the Tcl implementation of the `environment modules <http://modules.sourceforge.net/>`__.
+  - ``tmod`` or ``tmod32``: The classic Tcl implementation of the `environment modules <https://sourceforge.net/projects/modules/files/Modules/modules-3.2.10/>`__ (version 3.2).
+  - ``tmod31``: *[new in 2.21]* The classic Tcl implementation of the `environment modules <https://sourceforge.net/projects/modules/files/Modules/modules-3.2.10/>`__ (version 3.1).
+  - ``tmod4``: The version 4 of the Tcl implementation of the `environment modules <http://modules.sourceforge.net/>`__ (versions older than 4.1 are not supported).
   - ``lmod``: The Lua implementation of the `environment modules <https://lmod.readthedocs.io/en/latest/>`__.
+
+* ``modules``: *[new in 2.19]* Modules to be loaded always when running on this system.
+  These modules modify the ReFrame environment.
+  This is useful when for example a particular module is needed to submit jobs on a specific system.
+* ``variables``: *[new in 2.19]* Environment variables to be set always when running on this system.
 * ``prefix``: Default regression prefix for this system (default ``.``).
 * ``stagedir``: Default stage directory for this system (default :class:`None`).
 * ``outputdir``: Default output directory for this system (default :class:`None`).
-* ``logdir``: Default performance logging directory for this system (default :class:`None`).
+* ``perflogdir``: Default directory prefix for storing performance logs for this system (default :class:`None`).
 * ``resourcesdir``: Default directory for storing large resources (e.g., input data files, etc.) needed by regression tests for this system (default ``.``).
 * ``partitions``: A set of key/value pairs defining the partitions of this system and their properties (default ``{}``).
   Partition configuration is discussed in the `next section <#partition-configuration>`__.
 
-.. note::
-  .. versionadded:: 2.8
-    The ``modules_system`` key was introduced for specifying custom modules systems for different systems.
+For a more detailed description of the ``prefix``, ``stagedir``, ``outputdir`` and ``perflogdir`` directories, please refer to the `"Configuring ReFrame Directories" <running.html#configuring-reframe-directories>`__ and `"Performance Logging" <running.html#performance-logging>`__ sections.
 
-For a more detailed description of the ``prefix``, ``stagedir``, ``outputdir`` and ``logdir`` directories, please refer to the `"Running ReFrame" <running.html#configuring-reframe-directories>`__ section.
+.. note::
+   A different backend is used for Tmod 3.1, due to its different Python bindings.
+
+.. warning::
+   .. versionchanged:: 2.18
+    The ``logdir`` key is no more supported; please use ``perflogdir`` instead.
 
 Partition Configuration
 -----------------------
@@ -135,6 +150,33 @@ The available partition attributes are the following:
 
 * ``environs``: A list of environments, with which ReFrame will try to run any regression tests written for this partition (default ``[]``).
   The environment names must be resolved inside the ``environments`` section of the ``site_configuration`` dictionary (see `Environments Configuration <#environments-configuration>`__ for more information).
+
+* ``container_platforms``: *[new in 2.20]* A set of key/value pairs specifying the supported container platforms for this partition and how their environment is set up.
+  Supported platform names are the following (names are case sensitive):
+
+    - ``Docker``: The `Docker <https://www.docker.com/>`__ container runtime.
+    - ``Singularity``: The `Singularity <https://sylabs.io/>`__ container runtime.
+    - ``Sarus``: The `Sarus <https://sarus.readthedocs.io>`__ container runtime.
+
+  Each configured container runtime is associated optionally with an environment (modules and environment variables) that is providing it.
+  This environment is specified as a dictionary in the following format:
+
+   .. code:: python
+
+      {
+          'modules': ['mod1', 'mod2', ...]
+          'variables': {'ENV1': 'VAL1', 'ENV2': 'VAL2', ...}
+      }
+
+
+   If no special environment arrangement is needed for a configured container platform, you can simply specify an empty dictionary as an environment configuration, as it is shown in the following example:
+
+   .. code:: python
+
+      'container_platforms': {
+          'Docker': {}
+      }
+
 
 * ``modules``: A list of modules to be loaded before running a regression test on that partition (default ``[]``).
 
@@ -214,9 +256,15 @@ The available partition attributes are the following:
      A new syntax for the ``scheduler`` values was introduced as well as more parallel program launchers.
      The old values for the ``scheduler`` key will continue to be supported.
 
+.. note::
    .. versionchanged:: 2.9
-      Better support for custom job resources.
+     Better support for custom job resources.
 
+.. note::
+  .. versionchanged:: 2.14
+     The ``modules`` and ``variables`` partition configuration parameters do not affect the ReFrame environment anymore.
+     They essentially define an environment to be always emitted when building and/or running the test on this partition.
+     If you want to modify the environment ReFrame runs in for a particular system, define these parameters inside the `system configuration <#system-configuration>`__.
 
 
 Supported scheduler backends
@@ -248,7 +296,24 @@ ReFrame supports the following parallel job launchers:
 * ``alps``: Programs on the configured partition will be launched using the ``aprun`` command.
 * ``mpirun``: Programs on the configured partition will be launched using the ``mpirun`` command.
 * ``mpiexec``: Programs on the configured partition will be launched using the ``mpiexec`` command.
+* ``ibrun``: *[new in 2.21]* Programs on the configured partition will be launched using the ``ibrun`` command.
+  This is a custom parallel job launcher used at `TACC <https://portal.tacc.utexas.edu/user-guides/stampede2>`__.
 * ``local``: Programs on the configured partition will be launched as-is without using any parallel program launcher.
+* ``ssh``: *[new in 2.20]* Programs on the configured partition will be launched using SSH.
+  This option uses the partition's ``access`` parameter (see `above <#partition-configuration>`__) in order to determine the remote host and any additional options to be passed to the SSH client.
+  The ``ssh`` command will be launched in "batch mode," meaning that password-less access to the remote host must be configured.
+  Here is an example configuration for the ``ssh`` launcher:
+
+  .. code:: python
+
+    'partition_name': {
+        'scheduler': 'local+ssh',
+        'access': ['-l admin', 'remote.host'],
+        'environs': ['builtin'],
+    }
+
+  Note that the environment is not propagated to the remote host, so the ``environs`` variable has no practical meaning except for enabling the testing of this partition.
+
 
 There exist also the following aliases for specific combinations of job schedulers and parallel program launchers:
 
@@ -274,7 +339,6 @@ In the following example, we redefine ``PrgEnv-gnu`` for a system named ``foo``,
 
   'foo': {
       'PrgEnv-gnu': {
-          'type': 'ProgEnvironment',
           'modules': ['PrgEnv-gnu', 'openmpi'],
           'cc':  'mpicc',
           'cxx': 'mpicxx',
@@ -285,32 +349,89 @@ In the following example, we redefine ``PrgEnv-gnu`` for a system named ``foo``,
 An environment is also defined as a set of key/value pairs with the key being its name and the value being a dictionary of its attributes.
 The possible attributes of an environment are the following:
 
-* ``type``: The type of the environment to create. There are two available environment types (note that names are case sensitive):
-
-  * ``'Environment'``: A simple environment.
-  * ``'ProgEnvironment'``: A programming environment.
-
 * ``modules``: A list of modules to be loaded when this environment is used (default ``[]``, valid for all environment types)
 * ``variables``: A set of variables to be set when this environment is used (default ``{}``, valid for all environment types)
-* ``cc``: The C compiler (default ``'cc'``, valid for ``'ProgEnvironment'`` only).
-* ``cxx``: The C++ compiler (default ``'CC'``, valid for ``'ProgEnvironment'`` only).
-* ``ftn``: The Fortran compiler (default ``'ftn'``, valid for ``'ProgEnvironment'`` only).
-* ``cppflags``: The default preprocessor flags (default :class:`None`, valid for ``'ProgEnvironment'`` only).
-* ``cflags``: The default C compiler flags (default :class:`None`, valid for ``'ProgEnvironment'`` only).
-* ``cxxflags``: The default C++ compiler flags (default :class:`None`, valid for ``'ProgEnvironment'`` only).
-* ``fflags``: The default Fortran compiler flags (default :class:`None`, valid for ``'ProgEnvironment'`` only).
-* ``ldflags``: The default linker flags (default :class:`None`, valid for ``'ProgEnvironment'`` only).
+* ``cc``: The C compiler (default: ``'cc'``)
+* ``cxx``: The C++ compiler (default: ``'CC'``)
+* ``ftn``: The Fortran compiler (default: ``'ftn'``)
+* ``cppflags``: The default preprocessor flags (default: :class:`None`)
+* ``cflags``: The default C compiler flags (default: :class:`None`)
+* ``cxxflags``: The default C++ compiler flags (default: :class:`None`)
+* ``fflags``: The default Fortran compiler flags (default: :class:`None`)
+* ``ldflags``: The default linker flags (default: :class:`None`)
 
-.. note:: When defining programming environment flags, :class:`None` is treated differently from ``''`` for regression tests that are compiled through a Makefile.
-   If a flags variable is not :class:`None` it will be passed to the Makefile, which may affect the compilation process.
+.. note::
+   All flags for programming environments are now defined as list of strings instead of simple strings.
+
+   .. versionchanged:: 2.17
+
+.. note::
+  The ``type`` key is no more required for the environment configuration.
+
+  .. versionchanged:: 2.22
+
 
 System Auto-Detection
 ---------------------
 
-When the ReFrame is launched, it tries to auto-detect the current system based on its site configuration. The auto-detection process is as follows:
+When ReFrame is launched, it tries to detect the current system and select the correct site configuration entry. The auto-detection process is as follows:
 
 ReFrame first tries to obtain the hostname from ``/etc/xthostname``, which provides the unqualified *machine name* in Cray systems.
-If this cannot be found the hostname will be obtained from the standard ``hostname`` command. Having retrieved the hostname, ReFrame goes through all the systems in its configuration and tries to match the hostname against any of the patterns in the ``hostnames`` attribute of `system configuration <#system-configuration>`__.
+If this cannot be found the hostname will be obtained from the standard ``hostname`` command.
+Having retrieved the hostname, ReFrame goes through all the systems in its configuration and tries to match the hostname against any of the patterns in the ``hostnames`` attribute of `system configuration <#system-configuration>`__.
 The detection process stops at the first match found, and the system it belongs to is considered as the current system.
-If the system cannot be auto-detected, ReFrame will fail with an error message.
+If the system cannot be auto-detected, ReFrame will issue a warning and fall back to a generic system configuration, which is equivalent to the following:
+
+.. code-block:: python
+
+   site_configuration = {
+       'systems': {
+           'generic': {
+               'descr': 'Generic fallback system configuration',
+               'hostnames': ['localhost'],
+               'partitions': {
+                   'login': {
+                       'scheduler': 'local',
+                       'environs': ['builtin-gcc'],
+                       'descr': 'Login nodes'
+                   }
+               }
+           }
+       },
+       'environments': {
+           '*': {
+               'builtin-gcc': {
+                   'cc':  'gcc',
+                   'cxx': 'g++',
+                   'ftn': 'gfortran',
+               }
+           }
+       }
+   }
+
+
+
+
 You can override completely the auto-detection process by specifying a system or a system partition with the ``--system`` option (e.g., ``--system daint`` or ``--system daint:gpu``).
+
+.. note::
+   Instead of issuing an error, ReFrame falls back to a generic system configuration in case system auto-detection fails.
+
+   .. versionchanged:: 2.19
+
+
+
+
+Viewing the current system configuration
+----------------------------------------
+
+.. versionadded:: 2.16
+
+It is possible to ask ReFrame to print the configuration of the current system or the configuration of any programming environment defined for the current system.
+There are two command-line options for performing these operations:
+
+* ``--show-config``: This option shows the current system's configuration and exits.
+  It can be combined with the ``--system`` option in order to show the configuration of another system.
+* ``--show-config-env ENV``: This option shows the configuration of the programming environment ``ENV`` and exits.
+  The environment ``ENV`` must be defined for any of the partitions of the current system.
+  This option can also be combined with ``--system`` in order to show the configuration of a programming environment defined for another system.

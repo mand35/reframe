@@ -4,14 +4,13 @@
 
 import reframe as rfm
 import reframe.utility.sanity as sn
-from reframe.core.exceptions import ReframeError, SanityError
+from reframe.core.exceptions import ReframeError, PerformanceError
 
 
 class BaseFrontendCheck(rfm.RunOnlyRegressionTest):
     def __init__(self):
-        super().__init__()
         self.local = True
-        self.executable = 'echo hello && echo perf: 10'
+        self.executable = 'echo hello && echo perf: 10 Gflop/s'
         self.sanity_patterns = sn.assert_found('hello', self.stdout)
         self.tags = {type(self).__name__}
         self.maintainers = ['VK']
@@ -71,18 +70,18 @@ class PerformanceFailureCheck(BaseFrontendCheck):
         self.valid_systems = ['*']
         self.valid_prog_environs = ['*']
         self.perf_patterns = {
-            'perf': sn.extractsingle('perf: (\d+)', self.stdout, 1, int)
+            'perf': sn.extractsingle(r'perf: (\d+)', self.stdout, 1, int)
         }
         self.reference = {
             '*': {
-                'perf': (20, -0.1, 0.1)
+                'perf': (20, -0.1, 0.1, 'Gflop/s')
             }
         }
 
 
 @rfm.simple_test
 class CustomPerformanceFailureCheck(BaseFrontendCheck):
-    """Simulate a performance check that ignores completely logging"""
+    '''Simulate a performance check that ignores completely logging'''
 
     def __init__(self):
         super().__init__()
@@ -91,11 +90,11 @@ class CustomPerformanceFailureCheck(BaseFrontendCheck):
         self.strict_check = False
 
     def check_performance(self):
-        raise SanityError('performance failure')
+        raise PerformanceError('performance failure')
 
 
 class KeyboardInterruptCheck(BaseFrontendCheck):
-    """Simulate keyboard interrupt during test's execution."""
+    '''Simulate keyboard interrupt during test's execution.'''
 
     def __init__(self, phase='wait'):
         super().__init__()
@@ -119,7 +118,7 @@ class KeyboardInterruptCheck(BaseFrontendCheck):
 
 
 class SystemExitCheck(BaseFrontendCheck):
-    """Simulate system exit from within a check."""
+    '''Simulate system exit from within a check.'''
 
     def __init__(self):
         super().__init__()
@@ -129,6 +128,21 @@ class SystemExitCheck(BaseFrontendCheck):
     def wait(self):
         # We do our nasty stuff in wait() to make things more complicated
         sys.exit(1)
+
+
+@rfm.simple_test
+class CleanupFailTest(rfm.RunOnlyRegressionTest):
+    def __init__(self):
+        self.valid_systems = ['*']
+        self.valid_prog_environs = ['*']
+        self.sourcesdir = None
+        self.executable = 'echo foo'
+        self.sanity_patterns = sn.assert_found(r'foo', self.stdout)
+
+    @rfm.run_before('cleanup')
+    def fail(self):
+        # Make this test fail on purpose
+        raise Exception
 
 
 class SleepCheck(BaseFrontendCheck):
@@ -152,6 +166,22 @@ class SleepCheck(BaseFrontendCheck):
         self.valid_systems = ['*']
         self.valid_prog_environs = ['*']
         SleepCheck._next_id += 1
+
+
+class SleepCheckPollFail(SleepCheck):
+    '''Emulate a test failing in the polling phase.'''
+
+    def poll(self):
+        raise ValueError
+
+
+class SleepCheckPollFailLate(SleepCheck):
+    '''Emulate a test failing in the polling phase
+    after the test has finished.'''
+
+    def poll(self):
+        if self._job.finished():
+            raise ValueError
 
 
 class RetriesCheck(BaseFrontendCheck):
