@@ -22,9 +22,39 @@ class ReframeSettings:
                         'descr': 'Login nodes'
                     }
                 }
+            },
+            'ubelix': {
+                'descr': 'UniBE HPC system UBELiX',
+                'hostnames': ['submit'],
+                'modules_system': 'lmod',
+                'stagedir':   '/gpfs/homefs/id/ms20e149/ReFrame/stage/',
+                'outputdir':  '/gpfs/homefs/id/ms20e149/ReFrame/output/',
+                'perflogdir': '/gpfs/homefs/id/ms20e149/ReFrame/logs/',
+                'partitions': {
+                    'login': {
+                        'scheduler': 'local',
+                        'modules': [],
+                        'access':  [],
+                        'environs': ['builtin-gcc'],
+                        'descr': 'Login nodes'
+                    },
+                    'compute': {
+                        'scheduler': 'nativeslurm',
+                        'modules': [],
+                        'access':  [],
+                        'environs': ['foss', 'intel'],
+                        'descr': 'compute nodes'
+                    },
+                     'gpu': {
+                        'scheduler': 'nativeslurm',
+                        'modules': [],
+                        'access':  ['--partition=gpu'],
+                        'environs': ['foss', 'intel'],
+                        'descr': 'gpu compute nodes'
+                    }
+                }
             }
         },
-
         'environments': {
             '*': {
                 'builtin': {
@@ -33,12 +63,25 @@ class ReframeSettings:
                     'cxx': '',
                     'ftn': '',
                 },
-
                 'builtin-gcc': {
                     'type': 'ProgEnvironment',
                     'cc':  'gcc',
                     'cxx': 'g++',
                     'ftn': 'gfortran',
+                },
+                'foss': {
+                    'type': 'ProgEnvironment',
+                    'modules': ['foss'],
+                    'cc':  'mpicc',
+                    'cxx': 'mpic++',
+                    'ftn': 'mpifort',
+                },
+                'intel': {
+                    'type': 'ProgEnvironment',
+                    'modules': ['intel'],
+                    'cc':  'mpiicc',
+                    'cxx': 'mpiicpc',
+                    'ftn': 'mpiifort',
                 }
             }
         }
@@ -91,6 +134,22 @@ class ReframeSettings:
                 ),
                 'append': True
             }
+#            {
+#                'type': 'file',
+#                'name': 'perf_summary.dat',
+#                'level': 'DEBUG',
+#                'format': (
+#                    '%(asctime)s|'
+#                    '%(check_info)s|'
+#                    '%(check_perf_var)s|'
+#                    '%(check_perf_value)s|'
+#                    '%(check_perf_ref)s|'
+#                    '%(check_perf_lower_thres)s|'
+#                    '%(check_perf_upper_thres)s|'
+#                    '%(check_perf_unit)s'
+#                ),
+#                'append': True
+#            }
         ]
     }
 
